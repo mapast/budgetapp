@@ -1,0 +1,15 @@
+{
+  "name": "Mój budżet",
+  "short_name": "Budżet",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fdf0f5",
+  "theme_color": "#fdf0f5",
+  "icons": [
+    {
+      "src": "https://cdn.jsdelivr.net/npm/twemoji@14/assets/72x72/1f338.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    }
+  ]
+}

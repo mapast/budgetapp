@@ -221,7 +221,6 @@
 <div style="text-align:center; padding: 48px 0 0;">
   <span style="display:inline-block; background:#fdf0f5; border:1px solid #f9d5e5; border-radius:50px; padding:3px 12px; font-size:11px; color:#c4698a; font-weight:500; letter-spacing:0.08em; text-transform:uppercase;" id="monthPill"></span>
   <div style="font-family:'Playfair Display',serif; font-size:26px; color:#7a2848; margin-top:6px;">Mój budżet 🌸</div>
-  <div style="margin-top:6px;"><button class="signout-btn" onclick="signOut()">wyloguj</button></div>
 </div>
 
   <div class="card">
@@ -277,28 +276,44 @@
 
   // ── Auth ────────────────────────────────────────────────────────────
 
-  function signIn() {
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      callback: (res) => {
-        if (res.error) { showToast('Błąd logowania', 'error'); return; }
-        accessToken = res.access_token;
-        fetchUserInfo();
-        document.getElementById('authScreen').style.display = 'none';
-        document.getElementById('appScreen').style.display  = 'flex';
-      }
-    });
-    client.requestAccessToken();
-  }
+function signIn() {
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (res) => {
+      if (res.error) { showToast('Błąd logowania', 'error'); return; }
+      accessToken = res.access_token;
+      const expiry = Date.now() + (res.expires_in * 1000);
+      localStorage.setItem('budget_token', res.access_token);
+      localStorage.setItem('budget_token_expiry', expiry);
+      fetchUserInfo();
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('appScreen').style.display  = 'flex';
+    }
+  });
+  client.requestAccessToken();
+}
 
-  function signOut() {
-    if (accessToken) google.accounts.oauth2.revoke(accessToken);
-    accessToken = null;
-    document.getElementById('appScreen').style.display  = 'none';
-    document.getElementById('authScreen').style.display = 'flex';
-    reset();
+function signOut() {
+  if (accessToken) google.accounts.oauth2.revoke(accessToken);
+  accessToken = null;
+  localStorage.removeItem('budget_token');
+  localStorage.removeItem('budget_token_expiry');
+  document.getElementById('appScreen').style.display  = 'none';
+  document.getElementById('authScreen').style.display = 'flex';
+  reset();
+}
+
+function tryAutoLogin() {
+  const token  = localStorage.getItem('budget_token');
+  const expiry = localStorage.getItem('budget_token_expiry');
+  if (token && expiry && Date.now() < parseInt(expiry)) {
+    accessToken = token;
+    fetchUserInfo();
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display  = 'flex';
   }
+}
 
 async function fetchUserInfo() {
   const months = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
@@ -392,6 +407,7 @@ async function fetchUserInfo() {
     t.style.display = 'block';
     setTimeout(() => t.style.display = 'none', 2800);
   }
+  tryAutoLogin();
 </script>
 </body>
 </html>
