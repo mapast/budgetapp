@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
+  <meta name="theme-color" content="#fdf0f5">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Budżet</title>
@@ -317,7 +320,8 @@ function tryAutoLogin() {
 
 async function fetchUserInfo() {
   const months = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
-  document.getElementById('monthPill').textContent = months[new Date().getMonth()];
+const now = new Date();
+document.getElementById('monthPill').textContent = months[now.getMonth()] + ' ' + now.getFullYear();
   try {
     const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: 'Bearer ' + accessToken }
@@ -354,37 +358,26 @@ async function fetchUserInfo() {
 
   // ── Sheets ──────────────────────────────────────────────────────────
 
-  async function handleSubmit() {
-    const btn = document.getElementById('submitBtn');
-    const amt = parseFloat(document.getElementById('amountInput').value);
-    btn.disabled = true;
-    btn.textContent = '⏳ Zapisuję...';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxaS0-LwmTECn-7qynolOUAi5RKtoBZI_H3OcA3Uhe__peU9wRLBSdtv-QxRsT7Swvg/exec';
 
-    try {
-      const row = await findNextEmptyRow(selectedCol);
-      const range = `${SHEET_NAME}!${selectedCol}${row}`;
-      const res = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: 'Bearer ' + accessToken,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ values: [[amt]] })
-        }
-      );
-      if (!res.ok) throw new Error(await res.text());
-      showToast('🎀 ' + selectedCatName + ' – ' + amt.toFixed(2) + ' zł', 'success');
-      reset();
-    } catch(e) {
-      console.error(e);
-      showToast('Coś poszło nie tak 😢', 'error');
-      btn.disabled = false;
-      btn.textContent = '✨ Dodaj';
-    }
+async function handleSubmit() {
+  const btn = document.getElementById('submitBtn');
+  const amt = parseFloat(document.getElementById('amountInput').value);
+  btn.disabled = true;
+  btn.textContent = '⏳ Zapisuję...';
+
+  try {
+    await fetch(`${WEBAPP_URL}?sheet=Lipiec&col=${selectedCol}&amount=${amt}`, {
+      method: 'POST', mode: 'no-cors'
+    });
+    showToast('🎀 ' + selectedCatName + ' – ' + amt.toFixed(2) + ' zł', 'success');
+    reset();
+  } catch(e) {
+    showToast('Coś poszło nie tak 😢', 'error');
+    btn.disabled = false;
+    btn.textContent = '✨ Dodaj';
   }
-
+}
   async function findNextEmptyRow(col) {
     const range = `${SHEET_NAME}!${col}${DATA_START_ROW}:${col}${DATA_END_ROW}`;
     const res = await fetch(
