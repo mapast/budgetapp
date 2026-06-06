@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Budżet</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #fdf0f5;
+    min-height: 100vh;
+    padding: 16px 14px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ── Auth screen ── */
+  #authScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 24px;
+    padding: 2rem;
+    text-align: center;
+  }
+  #authScreen h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 30px;
+    color: #7a2848;
+  }
+  #authScreen p {
+    font-size: 15px;
+    color: #c4698a;
+    max-width: 280px;
+    line-height: 1.5;
+  }
+  .google-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fff;
+    border: 1.5px solid #f9d5e5;
+    border-radius: 14px;
+    padding: 14px 24px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: #7a2848;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .google-btn:active { opacity: 0.8; }
+  .google-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+  /* ── Main app ── */
+  #appScreen { display: none; flex-direction: column; gap: 12px; }
+
+  .card {
+    background: #fff;
+    border-radius: 22px;
+    padding: 14px 14px 10px;
+    border: 1px solid #f9d5e5;
+  }
+
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: #c4698a;
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+
+  .category-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .cat-btn {
+    background: #fdf0f5;
+    border: 1.5px solid #f9d5e5;
+    border-radius: 14px;
+    padding: 12px 4px;
+    cursor: pointer;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .cat-btn.selected {
+    background: #7a2848 !important;
+    border-color: #7a2848 !important;
+  }
+  .cat-btn.selected .cat-name { color: #fff !important; }
+
+  .cat-emoji { font-size: 24px; line-height: 1; }
+  .cat-name { font-size: 11px; font-weight: 500; color: #a34e6e; line-height: 1.2; }
+
+  .selected-summary { font-size: 12px; color: #c4698a; text-align: center; margin-top: 8px; min-height: 16px; }
+
+  .amount-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fdf0f5;
+    border-radius: 14px;
+    padding: 10px 16px;
+    border: 1.5px solid #f9d5e5;
+  }
+  .amount-row:focus-within { border-color: #7a2848; }
+
+  .amount-input {
+    border: none;
+    background: transparent;
+    font-family: 'Playfair Display', serif;
+    font-size: 34px;
+    color: #7a2848;
+    width: 100%;
+    outline: none;
+    font-weight: 400;
+    min-width: 0;
+  }
+  .amount-input::placeholder { color: #e0a0be; }
+
+  .currency {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    color: #c4698a;
+    flex-shrink: 0;
+  }
+
+  .submit-btn {
+    width: 100%;
+    background: #7a2848;
+    color: #fff;
+    border: none;
+    border-radius: 18px;
+    padding: 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 18px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
+  }
+  .submit-btn:active { opacity: 0.82; }
+  .submit-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* ── Toast ── */
+  .toast {
+    display: none;
+    position: fixed;
+    bottom: 2rem; left: 50%;
+    transform: translateX(-50%);
+    border-radius: 50px;
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 100;
+    animation: fadeup 0.25s ease;
+  }
+  .toast.success { background: #7a2848; color: #fff; }
+  .toast.error   { background: #a32d2d; color: #fff; }
+  @keyframes fadeup {
+    from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+
+  .user-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2px 4px;
+  }
+  .user-name { font-size: 12px; color: #c4698a; }
+  .signout-btn {
+    font-size: 11px;
+    color: #c4698a;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: 'DM Sans', sans-serif;
+    padding: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- Auth screen -->
+<div id="authScreen">
+  <h1>Mój budżet 🌸</h1>
+  <p>Zaloguj się przez Google, żeby dodawać wydatki do arkusza.</p>
+  <button class="google-btn" onclick="signIn()">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+    Zaloguj się przez Google
+  </button>
+</div>
+
+<!-- Main app -->
+<div id="appScreen">
+  <div class="user-row">
+    <span class="user-name" id="userName"></span>
+    <button class="signout-btn" onclick="signOut()">wyloguj</button>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Kategoria</div>
+    <div class="category-grid">
+      <button class="cat-btn" data-cat="Jedzenie" data-col="B" onclick="selectCat(this)"><span class="cat-emoji">🛒</span><span class="cat-name">Jedzenie</span></button>
+      <button class="cat-btn" data-cat="Chemia"   data-col="C" onclick="selectCat(this)"><span class="cat-emoji">🧴</span><span class="cat-name">Chemia</span></button>
+      <button class="cat-btn" data-cat="Rozrywka" data-col="D" onclick="selectCat(this)"><span class="cat-emoji">🎬</span><span class="cat-name">Rozrywka</span></button>
+      <button class="cat-btn" data-cat="Restauracje" data-col="E" onclick="selectCat(this)"><span class="cat-emoji">🍽️</span><span class="cat-name">Restauracje</span></button>
+      <button class="cat-btn" data-cat="Kawa"    data-col="F" onclick="selectCat(this)"><span class="cat-emoji">☕</span><span class="cat-name">Kawa</span></button>
+      <button class="cat-btn" data-cat="Paliwo"  data-col="G" onclick="selectCat(this)"><span class="cat-emoji">⛽</span><span class="cat-name">Paliwo</span></button>
+      <button class="cat-btn" data-cat="Leki"    data-col="H" onclick="selectCat(this)"><span class="cat-emoji">💊</span><span class="cat-name">Leki</span></button>
+      <button class="cat-btn" data-cat="Koty"    data-col="I" onclick="selectCat(this)"><span class="cat-emoji">🐱</span><span class="cat-name">Koty</span></button>
+      <button class="cat-btn" data-cat="Szmaty"  data-col="J" onclick="selectCat(this)"><span class="cat-emoji">👗</span><span class="cat-name">Szmaty</span></button>
+    </div>
+    <div class="selected-summary" id="selectedSummary"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Kwota</div>
+    <div class="amount-row">
+      <input class="amount-input" type="number" id="amountInput" placeholder="0.00" min="0" step="0.01" oninput="checkReady()" />
+      <span class="currency">zł</span>
+    </div>
+  </div>
+
+  <button class="submit-btn" id="submitBtn" onclick="handleSubmit()" disabled>
+    ✨ Dodaj
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+  // ── CONFIG — fill these in ──────────────────────────────────────────
+  const CLIENT_ID      = '494754561236-u0lernbfbkinqta9rbsierus22oada1h.apps.googleusercontent.com';
+  const SPREADSHEET_ID = '188MA3SR9L1RpjNp8ibSknDNTWb8wkl76GoW1RwAlIBA';
+  const SHEET_NAME     = 'Lipiec';
+  const DATA_START_ROW = 58;   // first data row (below headers)
+  const DATA_END_ROW   = 74;   // last data row (row 75 is totals)
+  // ───────────────────────────────────────────────────────────────────
+
+  const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+
+  let accessToken = null;
+  let selectedCol = null;
+  let selectedCatName = null;
+
+  // ── Auth ────────────────────────────────────────────────────────────
+
+  function signIn() {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: (res) => {
+        if (res.error) { showToast('Błąd logowania', 'error'); return; }
+        accessToken = res.access_token;
+        fetchUserInfo();
+        document.getElementById('authScreen').style.display = 'none';
+        document.getElementById('appScreen').style.display  = 'flex';
+      }
+    });
+    client.requestAccessToken();
+  }
+
+  function signOut() {
+    if (accessToken) google.accounts.oauth2.revoke(accessToken);
+    accessToken = null;
+    document.getElementById('appScreen').style.display  = 'none';
+    document.getElementById('authScreen').style.display = 'flex';
+    reset();
+  }
+
+  async function fetchUserInfo() {
+    try {
+      const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: 'Bearer ' + accessToken }
+      });
+      const u = await r.json();
+      document.getElementById('userName').textContent = u.name || u.email || '';
+    } catch(e) {}
+  }
+
+  // ── UI ──────────────────────────────────────────────────────────────
+
+  function selectCat(el) {
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedCol     = el.dataset.col;
+    selectedCatName = el.dataset.cat;
+    document.getElementById('selectedSummary').textContent = '✓ ' + selectedCatName;
+    checkReady();
+  }
+
+  function checkReady() {
+    const amt = parseFloat(document.getElementById('amountInput').value);
+    document.getElementById('submitBtn').disabled = !(selectedCol && amt > 0);
+  }
+
+  function reset() {
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('amountInput').value = '';
+    document.getElementById('selectedSummary').textContent = '';
+    selectedCol = null; selectedCatName = null;
+    checkReady();
+  }
+
+  // ── Sheets ──────────────────────────────────────────────────────────
+
+  async function handleSubmit() {
+    const btn = document.getElementById('submitBtn');
+    const amt = parseFloat(document.getElementById('amountInput').value);
+    btn.disabled = true;
+    btn.textContent = '⏳ Zapisuję...';
+
+    try {
+      const row = await findNextEmptyRow(selectedCol);
+      const range = `${SHEET_NAME}!${selectedCol}${row}`;
+      const res = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: 'Bearer ' + accessToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ values: [[amt]] })
+        }
+      );
+      if (!res.ok) throw new Error(await res.text());
+      showToast('🎀 ' + selectedCatName + ' – ' + amt.toFixed(2) + ' zł', 'success');
+      reset();
+    } catch(e) {
+      console.error(e);
+      showToast('Coś poszło nie tak 😢', 'error');
+      btn.disabled = false;
+      btn.textContent = '✨ Dodaj';
+    }
+  }
+
+  async function findNextEmptyRow(col) {
+    const range = `${SHEET_NAME}!${col}${DATA_START_ROW}:${col}${DATA_END_ROW}`;
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}`,
+      { headers: { Authorization: 'Bearer ' + accessToken } }
+    );
+    const data = await res.json();
+    const rows = data.values || [];
+    const nextRow = DATA_START_ROW + rows.length;
+    if (nextRow > DATA_END_ROW) throw new Error('Kolumna jest pełna!');
+    return nextRow;
+  }
+
+  // ── Toast ────────────────────────────────────────────────────────────
+
+  function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast ' + type;
+    t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', 2800);
+  }
+</script>
+</body>
+</html>
