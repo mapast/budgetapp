@@ -242,7 +242,7 @@
   <div class="card">
     <div class="section-label">Kwota</div>
     <div class="amount-row">
-      <input class="amount-input" type="number" id="amountInput" placeholder="0.00" min="0" step="0.01" oninput="checkReady()" />
+      <input class="amount-input" type="tel" id="amountInput" placeholder="0.00" min="0" step="0.01" oninput="checkReady()" />
       <span class="currency">zł</span>
     </div>
   </div>
@@ -250,6 +250,9 @@
   <button class="submit-btn" id="submitBtn" onclick="handleSubmit()" disabled>
     ✨ Dodaj
   </button>
+  <a href="https://docs.google.com/spreadsheets/d/188MA3SR9L1RpjNp8ibSknDNTWb8wkl76GoW1RwAlIBA/edit" target="_blank" style="display:block; width:100%; text-align:center; padding:14px; font-family:'DM Sans',sans-serif; font-size:16px; color:#c4698a; text-decoration:none;">
+  Otwórz arkusz →
+</a>
 </div>
 
 <div class="toast" id="toast"></div>
