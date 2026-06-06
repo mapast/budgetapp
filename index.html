@@ -260,9 +260,9 @@
   // ── CONFIG — fill these in ──────────────────────────────────────────
   const CLIENT_ID      = '494754561236-u0lernbfbkinqta9rbsierus22oada1h.apps.googleusercontent.com';
   const SPREADSHEET_ID = '188MA3SR9L1RpjNp8ibSknDNTWb8wkl76GoW1RwAlIBA';
-  const SHEET_NAME     = 'Lipiec';
-  const DATA_START_ROW = 58;   // first data row (below headers)
-  const DATA_END_ROW   = 74;   // last data row (row 75 is totals)
+  const SHEET_NAME     = 'Czerwiec';
+  const DATA_START_ROW = 69;   // first data row (below headers)
+  const DATA_END_ROW   = 85;   // last data row (row 75 is totals)
   // ───────────────────────────────────────────────────────────────────
 
   const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
@@ -326,8 +326,10 @@
     document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
     document.getElementById('amountInput').value = '';
     document.getElementById('selectedSummary').textContent = '';
+    const btn = document.getElementById('submitBtn');
+    btn.textContent = '✨ Dodaj';
+    btn.disabled = true;
     selectedCol = null; selectedCatName = null;
-    checkReady();
   }
 
   // ── Sheets ──────────────────────────────────────────────────────────
