@@ -257,15 +257,15 @@
   <div class="card">
     <div class="section-label">Kategoria</div>
     <div class="category-grid">
-      <button class="cat-btn" data-cat="Jedzenie" data-col="Q" onclick="selectCat(this)"><span class="cat-emoji">🛒</span><span class="cat-name">Jedzenie</span><span class="cat-total" id="total-Q"></span></button>
-<button class="cat-btn" data-cat="Chemia" data-col="R" onclick="selectCat(this)"><span class="cat-emoji">🧴</span><span class="cat-name">Chemia</span><span class="cat-total" id="total-R"></span></button>
-<button class="cat-btn" data-cat="Rozrywka" data-col="S" onclick="selectCat(this)"><span class="cat-emoji">🎬</span><span class="cat-name">Rozrywka</span><span class="cat-total" id="total-S"></span></button>
-<button class="cat-btn" data-cat="Restauracje" data-col="T" onclick="selectCat(this)"><span class="cat-emoji">🍽️</span><span class="cat-name">Restauracje</span><span class="cat-total" id="total-T"></span></button>
-<button class="cat-btn" data-cat="Kawa" data-col="U" onclick="selectCat(this)"><span class="cat-emoji">☕</span><span class="cat-name">Kawa</span><span class="cat-total" id="total-U"></span></button>
-<button class="cat-btn" data-cat="Samochodowe" data-col="V" onclick="selectCat(this)"><span class="cat-emoji">🚗</span><span class="cat-name">Samochodowe</span><span class="cat-total" id="total-V"></span></button>
-<button class="cat-btn" data-cat="Leki" data-col="W" onclick="selectCat(this)"><span class="cat-emoji">💊</span><span class="cat-name">Leki</span><span class="cat-total" id="total-W"></span></button>
-<button class="cat-btn" data-cat="Szmaty" data-col="X" onclick="selectCat(this)"><span class="cat-emoji">👗</span><span class="cat-name">Szmaty</span><span class="cat-total" id="total-X"></span></button>
-<button class="cat-btn" data-cat="Inne" data-col="Y" data-needs-desc="true" onclick="selectCat(this)"><span class="cat-emoji">💸</span><span class="cat-name">Inne</span><span class="cat-total" id="total-Y"></span></button>
+      <button class="cat-btn" data-cat="Jedzenie" data-col="Q" onclick="selectCat(this)"><span class="cat-emoji">🛒</span><span class="cat-name">Jedzenie</span><span class="cat-total" id="total-Q">0 zł</span></button>
+<button class="cat-btn" data-cat="Chemia" data-col="R" onclick="selectCat(this)"><span class="cat-emoji">🧴</span><span class="cat-name">Chemia</span><span class="cat-total" id="total-R">0 zł</span></button>
+<button class="cat-btn" data-cat="Rozrywka" data-col="S" onclick="selectCat(this)"><span class="cat-emoji">🎬</span><span class="cat-name">Rozrywka</span><span class="cat-total" id="total-S">0 zł</span></button>
+<button class="cat-btn" data-cat="Restauracje" data-col="T" onclick="selectCat(this)"><span class="cat-emoji">🍽️</span><span class="cat-name">Restauracje</span><span class="cat-total" id="total-T">0 zł</span></button>
+<button class="cat-btn" data-cat="Kawa" data-col="U" onclick="selectCat(this)"><span class="cat-emoji">☕</span><span class="cat-name">Kawa</span><span class="cat-total" id="total-U">0 zł</span></button>
+<button class="cat-btn" data-cat="Samochodowe" data-col="V" onclick="selectCat(this)"><span class="cat-emoji">🚗</span><span class="cat-name">Samochodowe</span><span class="cat-total" id="total-V">0 zł</span></button>
+<button class="cat-btn" data-cat="Leki" data-col="W" onclick="selectCat(this)"><span class="cat-emoji">💊</span><span class="cat-name">Leki</span><span class="cat-total" id="total-W">0 zł</span></button>
+<button class="cat-btn" data-cat="Szmaty" data-col="X" onclick="selectCat(this)"><span class="cat-emoji">👗</span><span class="cat-name">Szmaty</span><span class="cat-total" id="total-X">0 zł</span></button>
+<button class="cat-btn" data-cat="Inne" data-col="Y" data-needs-desc="true" onclick="selectCat(this)"><span class="cat-emoji">💸</span><span class="cat-name">Inne</span><span class="cat-total" id="total-Y">0 zł</span></button>
     </div>
     <div class="selected-summary" id="selectedSummary"></div>
     <div id="descRow">
@@ -408,7 +408,7 @@ document.getElementById('monthPill').textContent = months[now.getMonth()] + ' ' 
     const totals = await res.json();
     for (const [col, val] of Object.entries(totals)) {
       const el = document.getElementById('total-' + col);
-      if (el) el.textContent = val ? val.toFixed(0) + ' zł' : '';
+      if (el) el.textContent = (val || 0).toFixed(0) + ' zł';
     }
   } catch(e) {}
 }
