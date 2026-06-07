@@ -8,7 +8,12 @@
   "icons": [
     {
       "src": "https://i.pinimg.com/564x/ac/e2/a6/ace2a61f085e4b628134d62f986f5849.jpg",
-      "sizes": "72x72",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://i.pinimg.com/564x/ac/e2/a6/ace2a61f085e4b628134d62f986f5849.jpg",
+      "sizes": "512x512",
       "type": "image/png"
     }
   ]
