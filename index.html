@@ -171,8 +171,8 @@
   bottom: 2rem; left: 50%;
   transform: translateX(-50%);
   border-radius: 50px;
-  padding: 12px 20px;
-  font-size: 14px;
+  padding: 14px 20px;
+  font-size: 16px;
   font-weight: 500;
   max-width: 90vw;
   align-items: center;
@@ -270,15 +270,15 @@
   <div class="card">
     <div class="section-label">Kategoria</div>
     <div class="category-grid">
-      <button class="cat-btn" data-cat="Jedzenie" data-col="Q" onclick="selectCat(this)"><span class="cat-emoji">🛒</span><span class="cat-name">Jedzenie</span><span class="cat-total" id="total-Q">0 zł</span></button>
-<button class="cat-btn" data-cat="Chemia" data-col="R" onclick="selectCat(this)"><span class="cat-emoji">🧴</span><span class="cat-name">Chemia</span><span class="cat-total" id="total-R">0 zł</span></button>
-<button class="cat-btn" data-cat="Rozrywka" data-col="S" onclick="selectCat(this)"><span class="cat-emoji">🎬</span><span class="cat-name">Rozrywka</span><span class="cat-total" id="total-S">0 zł</span></button>
-<button class="cat-btn" data-cat="Restauracje" data-col="T" onclick="selectCat(this)"><span class="cat-emoji">🍽️</span><span class="cat-name">Restauracje</span><span class="cat-total" id="total-T">0 zł</span></button>
-<button class="cat-btn" data-cat="Kawa" data-col="U" onclick="selectCat(this)"><span class="cat-emoji">☕</span><span class="cat-name">Kawa</span><span class="cat-total" id="total-U">0 zł</span></button>
-<button class="cat-btn" data-cat="Samochodowe" data-col="V" onclick="selectCat(this)"><span class="cat-emoji">🚗</span><span class="cat-name">Samochodowe</span><span class="cat-total" id="total-V">0 zł</span></button>
-<button class="cat-btn" data-cat="Leki" data-col="W" onclick="selectCat(this)"><span class="cat-emoji">💊</span><span class="cat-name">Leki</span><span class="cat-total" id="total-W">0 zł</span></button>
-<button class="cat-btn" data-cat="Szmaty" data-col="X" onclick="selectCat(this)"><span class="cat-emoji">👗</span><span class="cat-name">Szmaty</span><span class="cat-total" id="total-X">0 zł</span></button>
-<button class="cat-btn" data-cat="Inne" data-col="Y" data-needs-desc="true" onclick="selectCat(this)"><span class="cat-emoji">💸</span><span class="cat-name">Inne</span><span class="cat-total" id="total-Y">0 zł</span></button>
+      <button class="cat-btn" data-cat="Jedzenie" data-col="B" onclick="selectCat(this)"><span class="cat-emoji">🛒</span><span class="cat-name">Jedzenie</span><span class="cat-total" id="total-B">0 zł</span></button>
+<button class="cat-btn" data-cat="Chemia" data-col="C" onclick="selectCat(this)"><span class="cat-emoji">🧴</span><span class="cat-name">Chemia</span><span class="cat-total" id="total-C">0 zł</span></button>
+<button class="cat-btn" data-cat="Rozrywka" data-col="D" onclick="selectCat(this)"><span class="cat-emoji">🎬</span><span class="cat-name">Rozrywka</span><span class="cat-total" id="total-D">0 zł</span></button>
+<button class="cat-btn" data-cat="Restauracje" data-col="E" onclick="selectCat(this)"><span class="cat-emoji">🍽️</span><span class="cat-name">Restauracje</span><span class="cat-total" id="total-E">0 zł</span></button>
+<button class="cat-btn" data-cat="Kawa" data-col="F" onclick="selectCat(this)"><span class="cat-emoji">☕</span><span class="cat-name">Kawa</span><span class="cat-total" id="total-F">0 zł</span></button>
+<button class="cat-btn" data-cat="Samochodowe" data-col="G" onclick="selectCat(this)"><span class="cat-emoji">🚗</span><span class="cat-name">Samochodowe</span><span class="cat-total" id="total-G">0 zł</span></button>
+<button class="cat-btn" data-cat="Leki" data-col="H" onclick="selectCat(this)"><span class="cat-emoji">💊</span><span class="cat-name">Leki</span><span class="cat-total" id="total-H">0 zł</span></button>
+<button class="cat-btn" data-cat="Szmaty" data-col="I" onclick="selectCat(this)"><span class="cat-emoji">👗</span><span class="cat-name">Szmaty</span><span class="cat-total" id="total-I">0 zł</span></button>
+<button class="cat-btn" data-cat="Inne" data-col="J" data-needs-desc="true" onclick="selectCat(this)"><span class="cat-emoji">💸</span><span class="cat-name">Inne</span><span class="cat-total" id="total-J">0 zł</span></button>
     </div>
     <div id="descRow">
   <div class="desc-label">Na co? <span class="desc-hint"></span></div>
@@ -396,7 +396,7 @@ document.getElementById('monthPill').textContent = months[now.getMonth()] + ' ' 
 
   function checkReady() {
   const amt = parseFloat(document.getElementById('amountInput').value);
-  const needsDesc = selectedCol === 'Y';
+  const needsDesc = selectedCol === 'J';
   const desc = document.getElementById('descInput').value.trim();
   document.getElementById('submitBtn').disabled = !(selectedCol && amt > 0 && (!needsDesc || desc.length > 0));
 }
@@ -490,7 +490,7 @@ async function undoLast() {
   if (undoFn) {
     const btn = document.createElement('button');
     btn.textContent = 'Cofnij';
-    btn.style.cssText = 'background:#fff; border:none; border-radius:20px; color:#7a2848; font-family:"DM Sans",sans-serif; font-size:13px; font-weight:500; padding:3px 10px; cursor:pointer; white-space:nowrap; flex-shrink:0;';
+   btn.style.cssText = 'background:#fff; border:none; border-radius:20px; color:#7a2848; font-family:"DM Sans",sans-serif; font-size:15px; font-weight:500; padding:4px 12px; cursor:pointer; white-space:nowrap; flex-shrink:0;';
     btn.onclick = () => { undoFn(); t.style.display = 'none'; };
     t.appendChild(btn);
   }
