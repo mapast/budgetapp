@@ -21,6 +21,8 @@
     gap: 12px;
   }
 
+
+
   /* ── Auth screen ── */
   #authScreen {
     display: flex;
@@ -200,6 +202,32 @@
     font-family: 'DM Sans', sans-serif;
     padding: 0;
   }
+  .cat-total { font-size: 10px; color: #c4698a; }
+.cat-btn.selected .cat-total { color: #f9c6da; }
+
+#descRow {
+  display: none;
+  margin-top: 10px;
+  border-top: 1px solid #f9d5e5;
+  padding-top: 10px;
+  flex-direction: column;
+  gap: 4px;
+}
+#descRow.visible { display: flex; }
+.desc-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #c4698a; font-weight: 500; }
+.desc-hint { font-size: 11px; color: #c4698a; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.desc-input {
+  background: #fdf0f5;
+  border: 1.5px solid #f9d5e5;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  color: #7a2848;
+  outline: none;
+  width: 100%;
+}
+.desc-input:focus { border-color: #7a2848; }
 </style>
 </head>
 <body>
@@ -229,17 +257,21 @@
   <div class="card">
     <div class="section-label">Kategoria</div>
     <div class="category-grid">
-      <button class="cat-btn" data-cat="Jedzenie" data-col="Q" onclick="selectCat(this)"><span class="cat-emoji">🛒</span><span class="cat-name">Jedzenie</span></button>
-      <button class="cat-btn" data-cat="Chemia"   data-col="R" onclick="selectCat(this)"><span class="cat-emoji">🧴</span><span class="cat-name">Chemia</span></button>
-      <button class="cat-btn" data-cat="Rozrywka" data-col="S" onclick="selectCat(this)"><span class="cat-emoji">🎬</span><span class="cat-name">Rozrywka</span></button>
-      <button class="cat-btn" data-cat="Restauracje" data-col="T" onclick="selectCat(this)"><span class="cat-emoji">🍽️</span><span class="cat-name">Restauracje</span></button>
-      <button class="cat-btn" data-cat="Kawa"    data-col="U" onclick="selectCat(this)"><span class="cat-emoji">☕</span><span class="cat-name">Kawa</span></button>
-      <button class="cat-btn" data-cat="Paliwo"  data-col="V" onclick="selectCat(this)"><span class="cat-emoji">⛽</span><span class="cat-name">Paliwo</span></button>
-      <button class="cat-btn" data-cat="Leki"    data-col="W" onclick="selectCat(this)"><span class="cat-emoji">💊</span><span class="cat-name">Leki</span></button>
-      <button class="cat-btn" data-cat="Koty"    data-col="X" onclick="selectCat(this)"><span class="cat-emoji">🐱</span><span class="cat-name">Koty</span></button>
-      <button class="cat-btn" data-cat="Szmaty"  data-col="Y" onclick="selectCat(this)"><span class="cat-emoji">👗</span><span class="cat-name">Szmaty</span></button>
+      <button class="cat-btn" data-cat="Jedzenie" data-col="Q" onclick="selectCat(this)"><span class="cat-emoji">🛒</span><span class="cat-name">Jedzenie</span><span class="cat-total" id="total-Q"></span></button>
+<button class="cat-btn" data-cat="Chemia" data-col="R" onclick="selectCat(this)"><span class="cat-emoji">🧴</span><span class="cat-name">Chemia</span><span class="cat-total" id="total-R"></span></button>
+<button class="cat-btn" data-cat="Rozrywka" data-col="S" onclick="selectCat(this)"><span class="cat-emoji">🎬</span><span class="cat-name">Rozrywka</span><span class="cat-total" id="total-S"></span></button>
+<button class="cat-btn" data-cat="Restauracje" data-col="T" onclick="selectCat(this)"><span class="cat-emoji">🍽️</span><span class="cat-name">Restauracje</span><span class="cat-total" id="total-T"></span></button>
+<button class="cat-btn" data-cat="Kawa" data-col="U" onclick="selectCat(this)"><span class="cat-emoji">☕</span><span class="cat-name">Kawa</span><span class="cat-total" id="total-U"></span></button>
+<button class="cat-btn" data-cat="Samochodowe" data-col="V" onclick="selectCat(this)"><span class="cat-emoji">🚗</span><span class="cat-name">Samochodowe</span><span class="cat-total" id="total-V"></span></button>
+<button class="cat-btn" data-cat="Leki" data-col="W" onclick="selectCat(this)"><span class="cat-emoji">💊</span><span class="cat-name">Leki</span><span class="cat-total" id="total-W"></span></button>
+<button class="cat-btn" data-cat="Szmaty" data-col="X" onclick="selectCat(this)"><span class="cat-emoji">👗</span><span class="cat-name">Szmaty</span><span class="cat-total" id="total-X"></span></button>
+<button class="cat-btn" data-cat="Inne" data-col="Y" data-needs-desc="true" onclick="selectCat(this)"><span class="cat-emoji">💸</span><span class="cat-name">Inne</span><span class="cat-total" id="total-Y"></span></button>
     </div>
     <div class="selected-summary" id="selectedSummary"></div>
+    <div id="descRow">
+  <div class="desc-label">Na co? <span class="desc-hint">(wymagane)</span></div>
+  <input class="desc-input" type="text" id="descInput" placeholder="np. prezent, coś do domu, itp." oninput="checkReady()" />
+</div>
   </div>
 
   <div class="card">
@@ -333,47 +365,74 @@ document.getElementById('monthPill').textContent = months[now.getMonth()] + ' ' 
   // ── UI ──────────────────────────────────────────────────────────────
 
   function selectCat(el) {
-    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
-    el.classList.add('selected');
-    selectedCol     = el.dataset.col;
-    selectedCatName = el.dataset.cat;
-    document.getElementById('selectedSummary').textContent = '✓ ' + selectedCatName;
-    checkReady();
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedCol = el.dataset.col;
+  selectedCatName = el.dataset.cat;
+  document.getElementById('selectedSummary').textContent = '✓ ' + selectedCatName;
+  const needsDesc = el.dataset.needsDesc === 'true';
+  const descRow = document.getElementById('descRow');
+  if (needsDesc) {
+    descRow.classList.add('visible');
+    document.getElementById('descInput').value = '';
+  } else {
+    descRow.classList.remove('visible');
   }
+  checkReady();
+}
 
   function checkReady() {
-    const amt = parseFloat(document.getElementById('amountInput').value);
-    document.getElementById('submitBtn').disabled = !(selectedCol && amt > 0);
-  }
+  const amt = parseFloat(document.getElementById('amountInput').value);
+  const needsDesc = selectedCol === 'Y';
+  const desc = document.getElementById('descInput').value.trim();
+  document.getElementById('submitBtn').disabled = !(selectedCol && amt > 0 && (!needsDesc || desc.length > 0));
+}
 
   function reset() {
-    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
-    document.getElementById('amountInput').value = '';
-    document.getElementById('selectedSummary').textContent = '';
-    const btn = document.getElementById('submitBtn');
-    btn.textContent = '✨ Dodaj';
-    btn.disabled = true;
-    selectedCol = null; selectedCatName = null;
-  }
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('amountInput').value = '';
+  document.getElementById('selectedSummary').textContent = '';
+  document.getElementById('descInput').value = '';
+  document.getElementById('descRow').classList.remove('visible');
+  const btn = document.getElementById('submitBtn');
+  btn.textContent = '✨ Dodaj';
+  btn.disabled = true;
+  selectedCol = null; selectedCatName = null;
+}
+
+  async function loadTotals() {
+  const MONTHS = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+  const sheetName = MONTHS[new Date().getMonth()];
+  try {
+    const res = await fetch(`${WEBAPP_URL}?sheet=${encodeURIComponent(sheetName)}`, { mode: 'cors' });
+    const totals = await res.json();
+    for (const [col, val] of Object.entries(totals)) {
+      const el = document.getElementById('total-' + col);
+      if (el) el.textContent = val ? val.toFixed(0) + ' zł' : '';
+    }
+  } catch(e) {}
+}
 
   // ── Sheets ──────────────────────────────────────────────────────────
 
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxaS0-LwmTECn-7qynolOUAi5RKtoBZI_H3OcA3Uhe__peU9wRLBSdtv-QxRsT7Swvg/exec';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyWbQfXjh6AqhHEGx57O8P11hG6qAMmVu7ajUPv3whu3IVytMMpJjkcN-pnCAeJcjfX/exec';
 
 async function handleSubmit() {
   const btn = document.getElementById('submitBtn');
   const amt = parseFloat(document.getElementById('amountInput').value);
+  const desc = document.getElementById('descInput').value.trim();
+  const MONTHS = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+  const sheetName = MONTHS[new Date().getMonth()];
   btn.disabled = true;
   btn.textContent = '⏳ Zapisuję...';
 
   try {
-    const MONTHS = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
-const sheetName = MONTHS[new Date().getMonth()];
-await fetch(`${WEBAPP_URL}?sheet=${encodeURIComponent(sheetName)}&col=${selectedCol}&amount=${amt}`, {
-      method: 'POST', mode: 'no-cors'
-    });
+    let url = `${WEBAPP_URL}?sheet=${encodeURIComponent(sheetName)}&col=${selectedCol}&amount=${amt}`;
+    if (desc) url += `&description=${encodeURIComponent(desc)}`;
+    await fetch(url, { method: 'POST', mode: 'no-cors' });
     showToast('🎀 ' + selectedCatName + ' – ' + amt.toFixed(2) + ' zł', 'success');
     reset();
+    loadTotals();
   } catch(e) {
     showToast('Coś poszło nie tak 😢', 'error');
     btn.disabled = false;
@@ -403,6 +462,7 @@ await fetch(`${WEBAPP_URL}?sheet=${encodeURIComponent(sheetName)}&col=${selected
     setTimeout(() => t.style.display = 'none', 2800);
   }
   tryAutoLogin();
+  loadTotals();
 </script>
 </body>
 </html>
