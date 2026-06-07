@@ -367,7 +367,9 @@ async function handleSubmit() {
   btn.textContent = '⏳ Zapisuję...';
 
   try {
-    await fetch(`${WEBAPP_URL}?sheet=Lipiec&col=${selectedCol}&amount=${amt}`, {
+    const MONTHS = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+const sheetName = MONTHS[new Date().getMonth()];
+await fetch(`${WEBAPP_URL}?sheet=${encodeURIComponent(sheetName)}&col=${selectedCol}&amount=${amt}`, {
       method: 'POST', mode: 'no-cors'
     });
     showToast('🎀 ' + selectedCatName + ' – ' + amt.toFixed(2) + ' zł', 'success');
