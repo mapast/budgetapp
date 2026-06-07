@@ -165,26 +165,40 @@
   .submit-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
   /* ── Toast ── */
-  .toast {
-    display: none;
-    position: fixed;
-    bottom: 2rem; left: 50%;
-    transform: translateX(-50%);
-    border-radius: 50px;
-    padding: 12px 24px;
-    font-size: 15px;
-    font-weight: 500;
-    white-space: nowrap;
-    z-index: 100;
-    animation: fadeup 0.25s ease;
-  }
+.toast {
+  display: none;
+  position: fixed;
+  bottom: 2rem; left: 50%;
+  transform: translateX(-50%);
+  border-radius: 50px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 90vw;
+  align-items: center;
+  gap: 8px;
+  z-index: 100;
+  animation: fadeup 0.25s ease;
+}
   .toast.success { background: #7a2848; color: #fff; }
   .toast.error   { background: #a32d2d; color: #fff; }
   @keyframes fadeup {
     from { opacity: 0; transform: translateX(-50%) translateY(8px); }
     to   { opacity: 1; transform: translateX(-50%) translateY(0); }
   }
-
+.cofnij {
+  background: #fff;
+  border: none;
+  border-radius: 20px;
+  color: #7a2848;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 3px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
   .user-row {
     display: flex;
     align-items: center;
@@ -248,7 +262,7 @@
 
 <!-- Main app -->
 <div id="appScreen">
-<div style="text-align:center; padding: 48px 0 0;">
+<div style="text-align:center; padding: 8px 0 0;">
   <span style="display:inline-block; background:#fdf0f5; border:1px solid #f9d5e5; border-radius:50px; padding:3px 12px; font-size:11px; color:#c4698a; font-weight:500; letter-spacing:0.08em; text-transform:uppercase;" id="monthPill"></span>
   <div style="font-family:'Playfair Display',serif; font-size:26px; color:#7a2848; margin-top:6px;">Mój budżet 🌸</div>
 </div>
@@ -306,6 +320,8 @@
   let accessToken = null;
   let selectedCol = null;
   let selectedCatName = null;
+  let toastTimer = null;
+  let lastEntry = null;
 
   // ── Auth ────────────────────────────────────────────────────────────
 
@@ -426,13 +442,28 @@ async function handleSubmit() {
     let url = `${WEBAPP_URL}?sheet=${encodeURIComponent(sheetName)}&col=${selectedCol}&amount=${amt}`;
     if (desc) url += `&description=${encodeURIComponent(desc)}`;
     await fetch(url, { method: 'POST', mode: 'no-cors' });
-    showToast('🎀 ' + selectedCatName + ' – ' + amt.toFixed(2) + ' zł', 'success');
+    lastEntry = { sheetName, col: selectedCol, cat: selectedCatName, amt, desc };
+    showToast('🎀 ' + selectedCatName + ' – ' + amt.toFixed(2) + ' zł', 'success', undoLast);
     reset();
     loadTotals();
   } catch(e) {
     showToast('Coś poszło nie tak 😢', 'error');
     btn.disabled = false;
     btn.textContent = '✨ Dodaj';
+  }
+}
+
+async function undoLast() {
+  if (!lastEntry) return;
+  try {
+    await fetch(`${WEBAPP_URL}?sheet=${encodeURIComponent(lastEntry.sheetName)}&col=${lastEntry.col}&amount=${lastEntry.amt}&undo=true`, {
+      method: 'POST', mode: 'no-cors'
+    });
+    lastEntry = null;
+    loadTotals();
+    showToast('↩️ Cofnięto!', 'success');
+  } catch(e) {
+    showToast('Nie udało się cofnąć 😢', 'error');
   }
 }
   async function findNextEmptyRow(col) {
@@ -450,13 +481,24 @@ async function handleSubmit() {
 
   // ── Toast ────────────────────────────────────────────────────────────
 
-  function showToast(msg, type = 'success') {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = 'toast ' + type;
-    t.style.display = 'block';
-    setTimeout(() => t.style.display = 'none', 2800);
+  function showToast(msg, type = 'success', undoFn = null) {
+  const t = document.getElementById('toast');
+  t.innerHTML = '';
+  const text = document.createElement('span');
+  text.textContent = msg;
+  t.appendChild(text);
+  if (undoFn) {
+    const btn = document.createElement('button');
+    btn.textContent = 'Cofnij';
+    btn.style.cssText = 'background:#fff; border:none; border-radius:20px; color:#7a2848; font-family:"DM Sans",sans-serif; font-size:13px; font-weight:500; padding:3px 10px; cursor:pointer; white-space:nowrap; flex-shrink:0;';
+    btn.onclick = () => { undoFn(); t.style.display = 'none'; };
+    t.appendChild(btn);
   }
+  t.className = 'toast ' + type;
+  t.style.display = 'flex';
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.style.display = 'none', 4000);
+}
   tryAutoLogin();
   loadTotals();
 </script>
