@@ -16,6 +16,7 @@
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
+main{overflow-x:clip}
 body{font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;background:var(--page,#1c1411)}
 button,input{font-family:inherit}
 button{cursor:pointer}
@@ -733,7 +734,7 @@ function renderPayments() {
         <div class="bar" style="height:8px;background:rgba(255,255,255,.24)"><div style="width:${pct}%;background:${t.acc}"></div></div>
       </section>
       ${m.todo.length ? `<section class="card blur" style="border-radius:24px;padding:4px 16px">${m.todo.map((r) => ckRow(r)).join('')}</section>` : ''}
-      ${m.eurRows.length || eurSum > 0 ? `<section class="card blur" style="border-radius:24px;padding:14px 16px 6px;display:flex;flex-direction:column;gap:10px">
+      ${`<section class="card blur" style="border-radius:24px;padding:14px 16px 6px;display:flex;flex-direction:column;gap:10px">
         <h2 class="h2" style="color:${t.acc}">Konto w euro</h2>
         <div class="row-sb"><span class="serif" style="font-size:30px;line-height:1">${n0(eurSum)} €</span><span style="font-size:12px;color:var(--muted)">≈ ${n0(eurSum * data.rate)} zł</span></div>
         ${eurSum > 0 ? `<div style="display:flex;height:10px;border-radius:10px;overflow:hidden;gap:2px;background:rgba(255,255,255,.08)">${m.balance.filter((b) => b.amt > 0).map((b) => `<span style="flex:${b.amt} 0 0;background:${GOAL_COLORS[b.name] || t.acc}"></span>`).join('')}</div>` : ''}
@@ -741,8 +742,8 @@ function renderPayments() {
           <span style="width:10px;height:10px;border-radius:50%;background:${GOAL_COLORS[b.name] || t.acc}"></span><span style="font-size:14px;font-weight:500">${esc(b.name)}</span><span style="font-size:14px;font-weight:600">${n0(b.amt)} €</span></div>`).join('')}</div>
         ${m.eurRows.length ? `<div class="row-sb" style="border-top:1px solid rgba(255,255,255,.1);padding-top:10px">
             <span class="h2" style="color:var(--muted)">Przelew w tym miesiącu</span><span style="font-size:12px;color:var(--muted)">${n0(transfer)} € z firmowego</span></div>
-          <div style="margin-top:-4px">${m.eurRows.map((r) => ckRow(r, true)).join('')}</div>` : ''}
-      </section>` : ''}
+          <div style="margin-top:-4px">${m.eurRows.map((r) => ckRow(r, true)).join('')}</div>` : `<div style="border-top:1px solid rgba(255,255,255,.1);padding:10px 0 8px;font-size:13px;color:var(--muted)">W tym miesiącu bez przelewu w euro</div>`}
+      </section>`}
       ${m.done.length ? `<div class="row-sb" style="padding:4px 6px 0"><h2 class="h2" style="color:${t.acc}">Zrobione</h2><span style="font-size:12px;color:var(--muted)">${m.done.length}</span></div>
       <section class="card" style="border-radius:24px;padding:4px 16px;background:rgba(255,255,255,.03)">${m.done.map((r) => ckRow(r)).join('')}</section>` : ''}
       ${!allRows.length ? `<p style="color:var(--muted);text-align:center">Brak płatności – dodaj je w arkuszu, w zakładce „Płatności”.</p>` : ''}
