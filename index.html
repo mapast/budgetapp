@@ -275,18 +275,26 @@ let busy = 0;
 try { data = JSON.parse(localStorage.getItem(CACHE_KEY)); } catch (e) { data = null; }
 
 // ── API ──
+// Zapisy (POST) i odczyty (GET) mogą się mijać. Odczyt, który wystartował przed zapisem
+// albo wraca, gdy zapis jeszcze trwa, ma stare dane – wtedy go ignorujemy.
+let mutSeq = 0, mutPending = 0;
 async function api(body) {
   busy++; document.body.classList.add('busy');
+  const seqAtStart = mutSeq;
+  const mySeq = body ? ++mutSeq : 0;
+  if (body) mutPending++;
   try {
     const res = body
       ? await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
       : await fetch(API + '?action=all', { cache: 'no-store' });
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'Błąd serwera');
+    const stale = body ? mySeq !== mutSeq : (mutPending > 0 || mutSeq !== seqAtStart);
     const fresh = body ? json.data : json;
-    if (fresh) { data = fresh; try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch (e) {} }
+    if (fresh && !stale) { data = fresh; try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch (e) {} }
     return json;
   } finally {
+    if (body) mutPending--;
     busy--; if (!busy) document.body.classList.remove('busy');
   }
 }
