@@ -1,7 +1,7 @@
 // Mój budżet – service worker
 // Strona: najpierw sieć (żeby nowa wersja wchodziła od razu), zdjęcia: z pamięci podręcznej.
 // Dane z arkusza zawsze idą prosto do sieci.
-const CACHE = 'budzet-v2';
+const CACHE = 'budzet-v3';
 const SHELL = ['./', 'index.html', 'manifest.json',
   'img/m01.jpg','img/m02.jpg','img/m03.jpg','img/m04.jpg','img/m05.jpg','img/m06.jpg',
   'img/m07.jpg','img/m08.jpg','img/m09.jpg','img/m10.jpg','img/m11.jpg','img/m12.jpg',

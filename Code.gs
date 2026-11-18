@@ -3,7 +3,7 @@
  * Arkusz: „Budget app”
  *
  * GET  ?action=all               → wszystko, czego potrzebuje aplikacja (miesiąc, kategorie, cele, wpłaty, plan, kurs)
- * POST {action:'addExpense', category, amount, description?}
+ * POST {action:'addExpense', category, amount, description?, month?}   month: 'yyyy-MM' (domyślnie bieżący)
  * POST {action:'deleteExpense', id}
  * POST {action:'addDeposit', goal, amount, currency}        currency: 'zł' | '€'
  * POST {action:'editDeposit', id, amount, currency}
@@ -18,8 +18,12 @@ const SHEET = {
   categories: 'Kategorie',
   goals: 'Cele',
   plan: 'Oszczędności – plan',
-  deposits: 'Oszczędności – rzeczywiste'
+  deposits: 'Oszczędności – rzeczywiste',
+  payments: 'Płatności'
 };
+
+// Od tego dnia zakładka „Wydatki” pokazuje płatności na następny miesiąc (wypłata z 26. finansuje kolejny miesiąc)
+const NEXT_MONTH_FROM_DAY = 26;
 
 // Kolumny w zakładce „Oszczędności – plan” (indeks od 0, A = 0), wiersze z miesiącami: 11–21
 const PLAN_FIRST_ROW = 11;
@@ -75,7 +79,8 @@ function addExpense_(b) {
   const sh = sheet_(SHEET.expenses);
   const id = newId_();
   const now = new Date();
-  sh.appendRow([id, now, "'" + monthKey_(now), b.category, amount, b.description || '']);
+  const month = /^\d{4}-\d{2}$/.test(String(b.month || '')) ? String(b.month) : monthKey_(now);
+  sh.appendRow([id, now, "'" + month, b.category, amount, b.description || '']);
   return { id: id };
 }
 
@@ -112,10 +117,16 @@ function deleteRowById_(name, id) {
 // ── Odczyt ───────────────────────────────────────────────────────────
 
 function readAll_() {
-  const month = monthKey_(new Date());
+  const now = new Date();
+  const month = monthKey_(now);
+  const day = Number(Utilities.formatDate(now, TZ, 'd'));
+  const paymentsMonth = day >= NEXT_MONTH_FROM_DAY ? monthKey_(new Date(now.getFullYear(), now.getMonth() + 1, 1)) : month;
   return {
     ok: true,
     month: month,
+    paymentsMonth: paymentsMonth,
+    payments: readPayments_(),
+    expenses: readExpenses_([month, paymentsMonth]),
     rate: num_(sheet_(SHEET.goals).getRange('B11').getValue()),
     budget: readBudget_(),
     goals: readGoals_(),
@@ -191,6 +202,34 @@ function readDeposits_() {
         goal: r[3],
         amount: num_(r[4]),
         currency: r[5] === '€' ? '€' : 'zł'
+      };
+    });
+}
+
+function readPayments_() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.payments);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 5).getValues()
+    .filter(function (r) { return r[0] && r[1] && num_(r[2]) > 0; })
+    .map(function (r) {
+      return { id: String(r[0]), name: String(r[1]), amount: num_(r[2]), category: String(r[3] || 'Rachunki'), day: r[4] === '' ? null : num_(r[4]) || null };
+    });
+}
+
+function readExpenses_(months) {
+  const sh = sheet_(SHEET.expenses);
+  const last = sh.getLastRow();
+  if (last < 2) return [];
+  return sh.getRange(2, 1, last - 1, 6).getValues()
+    .filter(function (r) { return r[0] && months.indexOf(String(r[2])) !== -1; })
+    .map(function (r) {
+      return {
+        id: String(r[0]),
+        date: r[1] instanceof Date ? Utilities.formatDate(r[1], TZ, 'yyyy-MM-dd') : String(r[1]),
+        month: String(r[2]),
+        category: String(r[3]),
+        amount: num_(r[4]),
+        description: String(r[5] || '')
       };
     });
 }
