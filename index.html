@@ -23,6 +23,8 @@ button{cursor:pointer}
 .serif{font-family:'Playfair Display',serif}
 .view{display:none;position:relative;min-height:100svh;overflow:hidden;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 .view.on{display:block}
+.mnav{width:36px;height:36px;border-radius:18px;border:1px solid rgba(255,255,255,.28);background:rgba(0,0,0,.18);color:#fff;display:flex;align-items:center;justify-content:center;padding:0;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.mnav:disabled{opacity:.3}
 .svhead{min-height:180px;display:flex;flex-direction:column}
 .inner{position:relative;z-index:1;max-width:480px;margin:0 auto;padding:max(calc(env(safe-area-inset-top) + 26px), 60px) 16px 0;display:flex;flex-direction:column;gap:12px}
 .eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
@@ -255,6 +257,40 @@ const ICONS = {
 };
 
 const TABS = ['budget', 'Wydatki', 'Poduszka', 'Korea', 'Operacja'];
+let bmSel = null, pmSel = null;   // miesiąc wybrany strzałkami na ekranie miesiąca / w „Wydatkach”
+const inRange = (m) => !!(data && data.months && data.months.includes(m));
+const getBM = () => (bmSel && inRange(bmSel) ? bmSel : data.month);
+const getPM = () => (pmSel && inRange(pmSel) ? pmSel : (data.paymentsMonth || data.month));
+function budgetFor(m) { return (data.budgets && data.budgets[m]) || (m === data.month ? data.budget : null); }
+function bumpBudget(m, category, delta) {
+  const list = [data.budgets && data.budgets[m], m === data.month ? data.budget : null].filter((b, i, a) => b && a.indexOf(b) === i);
+  list.forEach((b) => {
+    const c = b.categories.find((x) => x.name === category);
+    if (c) c.spent += delta;
+    b.spent += delta; b.left -= delta;
+    if (c && c.limit === null) b.pool.spent += delta;
+  });
+}
+const ARROW_L = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
+const ARROW_R = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
+function monthTitle(m, eyebrow, eyebrowColor, shadow, which) {
+  const i = data.months ? data.months.indexOf(m) : -1;
+  const btn = (dir, ok, icon, label) => `<button class="mnav" data-which="${which}" data-dir="${dir}" ${ok ? '' : 'disabled'} aria-label="${label}">${icon}</button>`;
+  return `<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:0 4px;text-shadow:${shadow}">
+    <div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="eyebrow" style="color:${eyebrowColor}">${eyebrow}</span><h1 class="h1">${monName(m)} ${m.slice(0, 4)}</h1></div>
+    ${i === -1 ? '' : `<div style="display:flex;gap:6px;padding-bottom:4px">${btn(-1, i > 0, ARROW_L, 'Poprzedni miesiąc')}${btn(1, i < data.months.length - 1, ARROW_R, 'Następny miesiąc')}</div>`}
+  </div>`;
+}
+function bindMonthNav(el) {
+  el.querySelectorAll('.mnav').forEach((b) => b.onclick = () => {
+    const which = b.dataset.which, dir = Number(b.dataset.dir);
+    const curM = which === 'b' ? getBM() : getPM();
+    const next = data.months[data.months.indexOf(curM) + dir];
+    if (!next) return;
+    if (which === 'b') bmSel = next; else pmSel = next;
+    render();
+  });
+}
 
 // ── helpers ──
 const $ = (id) => document.getElementById(id);
@@ -325,7 +361,7 @@ function renderNav() {
   const nav = $('nav');
   let v;
   if (tab === 'budget' || tab === 'Wydatki') {
-    const t = THEMES[monIdx(tab === 'Wydatki' && data ? data.paymentsMonth || cur : cur)];
+    const t = THEMES[monIdx(!data ? cur : tab === 'Wydatki' ? getPM() : getBM())];
     v = { nav: rgba(t.base, .95), navB: 'rgba(255,255,255,.14)', navIn: t.muted, acc: t.acc, navPill: 'rgba(255,255,255,.12)' };
   } else v = SV[tab].v;
   nav.style.background = v.nav; nav.style.borderTopColor = v.navB;
@@ -339,9 +375,9 @@ function renderNav() {
 // ── budget view ──
 function renderBudget() {
   const el = $('v-budget');
-  const cur = data.month, t = THEMES[monIdx(cur)];
+  const cur = getBM(), t = THEMES[monIdx(cur)];
   setVars(el, { base: t.base, acc: t.acc, accText: t.accText, muted: t.muted, hero: t.hero, scrim: rgba(t.base, .5), over: '#ffa08f', photo: `url(img/${t.photo}.jpg)` });
-  const b = data.budget;
+  const b = budgetFor(cur) || data.budget;
   const now = new Date();
   const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const daysLeft = dim - now.getDate() + 1;
@@ -355,16 +391,13 @@ function renderBudget() {
   el.innerHTML = `
     <div class="photo" aria-hidden="true"></div><div class="fade" aria-hidden="true"></div>
     <div class="inner">
-      <div style="display:flex;flex-direction:column;gap:2px;padding:0 4px;text-shadow:0 2px 12px ${rgba(t.base, .7)}">
-        <span class="eyebrow" style="color:${t.eyebrow}">Budżet miesiąca</span>
-        <h1 class="h1" style="color:#fff">${monName(cur)} ${cur.slice(0, 4)}</h1>
-      </div>
+      ${monthTitle(cur, 'Budżet miesiąca', t.eyebrow, '0 2px 12px ' + rgba(t.base, .7), 'b')}
       <div style="height:${t.spacer}px"></div>
       <section class="hero blur" style="border-radius:24px;padding:16px 18px;display:flex;flex-direction:column;gap:10px">
         <div class="row-sb" style="font-size:13px;color:rgba(255,255,255,.82)"><span>Zostało do wydania</span><span>z ${n0(b.total)} zł</span></div>
         <div class="serif" style="font-size:40px;line-height:1;${b.left < 0 ? 'color:#ffa08f' : ''}">${n0(b.left)} zł</div>
         <div class="bar" style="height:8px;background:rgba(255,255,255,.24)"><div style="width:${pct}%;background:${b.left < 0 ? '#ffa08f' : t.acc}"></div></div>
-        <div style="font-size:13px;color:rgba(255,255,255,.82)">${daysLeft === 1 ? 'ostatni dzień miesiąca' : daysLeft + ' dni do końca miesiąca'}</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.82)">${cur < data.month ? 'miesiąc zakończony' : cur > data.month ? 'zaczyna się 1 ' + MON_GEN[monIdx(cur)] : (daysLeft === 1 ? 'ostatni dzień miesiąca' : daysLeft + ' dni do końca miesiąca')}</div>
       </section>
       <section class="card blur" style="border-radius:24px;padding:12px;display:flex;flex-direction:column;gap:8px">
         <div class="row-sb" style="padding:0 2px">
@@ -391,6 +424,7 @@ function renderBudget() {
 
   el.querySelectorAll('.tile').forEach((btn) => btn.onclick = () => { picked = btn.dataset.cat; renderBudget(); });
   $('expAdd').onclick = addExpense;
+  bindMonthNav(el);
   $('expAmt').onkeydown = (e) => { if (e.key === 'Enter') addExpense(); };
 }
 
@@ -401,17 +435,15 @@ async function addExpense() {
   const description = $('expDesc') ? $('expDesc').value.trim() : '';
   // optimistic update
   const prev = JSON.parse(JSON.stringify(data));
-  const c = data.budget.categories.find((x) => x.name === category);
-  if (c) c.spent += amount;
-  data.budget.spent += amount; data.budget.left -= amount;
-  if (c && isPool(c)) data.budget.pool.spent += amount;
-  (data.expenses = data.expenses || []).push({ id: 'tmp' + Date.now(), month: data.month, category, amount, description });
+  const month = getBM();
+  bumpBudget(month, category, amount);
+  (data.expenses = data.expenses || []).push({ id: 'tmp' + Date.now(), month, category, amount, description });
   $('expAmt').value = ''; if ($('expDesc')) $('expDesc').value = '';
   render();
   try {
-    const r = await api({ action: 'addExpense', category, amount, description });
+    const r = await api({ action: 'addExpense', category, amount, description, month });
     render();
-    toast(`Dodano ${n2(amount)} zł · ${category}`, 'Cofnij', () => undoExpense(r.id, amount, category));
+    toast(`Dodano ${n2(amount)} zł · ${category}${month !== data.month ? ' · ' + monName(month).toLowerCase() : ''}`, 'Cofnij', () => undoExpense(r.id, amount, category));
   } catch (e) {
     data = prev; render();
     toast('Nie udało się zapisać. Spróbuj jeszcze raz.');
@@ -656,7 +688,7 @@ const GOAL_COLORS = { Korea: '#ff7ab6', Poduszka: '#7fb2e5', Operacja: '#e8b4bc'
 let payBusy = {};   // id → true while saving
 
 function paymentsModel() {
-  const pm = data.paymentsMonth || data.month;
+  const pm = getPM();
   const isCur = pm === data.month;
   const today = new Date().getDate();
   const pool = (data.expenses || []).filter((e) => e.month === pm);
@@ -720,10 +752,7 @@ function renderPayments() {
   el.innerHTML = `
     <div class="photo" aria-hidden="true"></div><div class="fade" aria-hidden="true"></div>
     <div class="inner">
-      <div style="display:flex;flex-direction:column;gap:2px;padding:0 4px;text-shadow:0 2px 12px ${rgba(t.base, .7)}">
-        <span class="eyebrow" style="color:${t.eyebrow}">Płatności i przelewy</span>
-        <h1 class="h1">${monName(m.pm)} ${m.pm.slice(0, 4)}</h1>
-      </div>
+      ${monthTitle(m.pm, 'Płatności i przelewy', t.eyebrow, '0 2px 12px ' + rgba(t.base, .7), 'p')}
       <div style="height:40px"></div>
       <section class="hero blur" style="border-radius:24px;padding:16px 18px;display:flex;flex-direction:column;gap:10px">
         <div class="row-sb" style="font-size:13px;color:rgba(255,255,255,.82)"><span>Zostało do zrobienia</span><span>${doneN} z ${all} gotowe</span></div>
@@ -750,13 +779,14 @@ function renderPayments() {
     </div>`;
 
   el.querySelectorAll('.ck').forEach((b) => b.onclick = () => togglePay(allRows.find((r) => r.key === b.dataset.key), m));
+  bindMonthNav(el);
 }
 
 async function togglePay(r, m) {
   if (!r || payBusy[r.key]) return;
   if (r.kind === 'save') {
     if (r.done) { toast(`Wpłaty na ${r.goal} zmienisz w karcie ${r.goal}`); return; }
-    if (!m.isCur) { toast('Wpłaty na przyszły miesiąc zapiszesz od 1.'); return; }
+    if (!m.isCur) { toast(m.pm > data.month ? 'Wpłaty na przyszły miesiąc zapiszesz od 1.' : `Wpłaty za ${monName(m.pm).toLowerCase()} zmienisz w karcie ${r.goal}`); return; }
     payBusy[r.key] = true; render();
     try { await api({ action: 'addDeposit', goal: r.goal, amount: r.amount, currency: r.cur }); toast(`Wpłacono ${r.cur === '€' ? n2(r.amount) : n0(r.amount)} ${r.cur} · ${r.goal}`); }
     catch (e) { toast('Nie udało się zapisać. Spróbuj jeszcze raz.'); }
@@ -764,14 +794,12 @@ async function togglePay(r, m) {
   }
   payBusy[r.key] = true;
   const prev = JSON.parse(JSON.stringify(data));
-  const touchesBudget = m.pm === data.month;
-  const cat = data.budget.categories.find((c) => c.name === r.pay.category);
   if (r.done) {
     data.expenses = data.expenses.filter((e) => e.id !== r.expenseId);
-    if (touchesBudget && cat) { cat.spent -= r.amount; data.budget.spent -= r.amount; data.budget.left += r.amount; }
+    bumpBudget(m.pm, r.pay.category, -r.amount);
   } else {
     data.expenses.push({ id: 'tmp' + Date.now(), month: m.pm, category: r.pay.category, amount: r.amount, description: r.name });
-    if (touchesBudget && cat) { cat.spent += r.amount; data.budget.spent += r.amount; data.budget.left -= r.amount; }
+    bumpBudget(m.pm, r.pay.category, r.amount);
   }
   render();
   try {
@@ -796,7 +824,7 @@ function render() {
   if (!TABS.includes(tab)) tab = 'budget';
   document.querySelectorAll('.view').forEach((v) => v.classList.toggle('on', v.id === 'v-' + tab));
   const t = THEMES[monIdx(data.month)];
-  const page = tab === 'budget' ? t.base : tab === 'Wydatki' ? THEMES[monIdx(data.paymentsMonth || data.month)].base : SV[tab].page;
+  const page = tab === 'budget' ? THEMES[monIdx(getBM())].base : tab === 'Wydatki' ? THEMES[monIdx(getPM())].base : SV[tab].page;
   document.body.style.setProperty('--page', page);
   document.querySelector('meta[name=theme-color]').setAttribute('content', page);
   if (tab === 'budget') renderBudget(); else if (tab === 'Wydatki') renderPayments(); else renderSaving(tab);

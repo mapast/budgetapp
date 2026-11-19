@@ -120,13 +120,17 @@ function readAll_() {
   const now = new Date();
   const month = monthKey_(now);
   const day = Number(Utilities.formatDate(now, TZ, 'd'));
-  const paymentsMonth = day >= NEXT_MONTH_FROM_DAY ? monthKey_(new Date(now.getFullYear(), now.getMonth() + 1, 1)) : month;
+  const prevMonth = monthKey_(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+  const nextMonth = monthKey_(new Date(now.getFullYear(), now.getMonth() + 1, 1));
+  const paymentsMonth = day >= NEXT_MONTH_FROM_DAY ? nextMonth : month;
   return {
     ok: true,
     month: month,
     paymentsMonth: paymentsMonth,
+    months: [prevMonth, month, nextMonth],
+    budgets: readBudgets_([prevMonth, month, nextMonth]),
     payments: readPayments_(),
-    expenses: readExpenses_([month, paymentsMonth]),
+    expenses: readExpenses_([prevMonth, month, nextMonth]),
     rate: num_(sheet_(SHEET.goals).getRange('B11').getValue()),
     budget: readBudget_(),
     goals: readGoals_(),
@@ -158,6 +162,36 @@ function readBudget_() {
     pool: { limit: num_(pool[3]), spent: num_(pool[4]) },
     categories: categories
   };
+}
+
+// Budżet dla dowolnego miesiąca, liczony w skrypcie (arkusz liczy tylko bieżący).
+function readBudgets_(months) {
+  const sh = sheet_(SHEET.categories);
+  const base = num_(sh.getRange('B2').getValue());
+  const rows = sh.getRange('A6:C15').getValues().filter(function (r) { return r[0]; });
+  const exp = readExpenses_(months);
+  const out = {};
+  months.forEach(function (m) {
+    const mm = m.slice(5, 7);
+    const spentBy = {};
+    exp.filter(function (e) { return e.month === m; }).forEach(function (e) { spentBy[e.category] = (spentBy[e.category] || 0) + e.amount; });
+    let total = base, fixed = 0, poolSpent = 0;
+    const categories = [];
+    rows.forEach(function (r) {
+      const name = String(r[0]);
+      const hasLimit = r[1] !== '' && r[1] !== null;
+      const only = String(r[2] || '').trim();
+      const onlyMm = only ? ('0' + only).slice(-2) : '';
+      if (only && onlyMm !== mm) return;              // np. Święta tylko w grudniu
+      const limit = hasLimit ? num_(r[1]) : null;
+      if (only) total += limit || 0;
+      if (limit !== null) fixed += limit; else poolSpent += spentBy[name] || 0;
+      categories.push({ name: name, limit: limit, spent: spentBy[name] || 0 });
+    });
+    const spent = categories.reduce(function (s, c) { return s + c.spent; }, 0);
+    out[m] = { total: total, spent: spent, left: total - spent, pool: { limit: total - fixed, spent: poolSpent }, categories: categories };
+  });
+  return out;
 }
 
 function readGoals_() {
