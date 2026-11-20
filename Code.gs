@@ -19,8 +19,13 @@ const SHEET = {
   goals: 'Cele',
   plan: 'Oszczędności – plan',
   deposits: 'Oszczędności – rzeczywiste',
-  payments: 'Płatności'
+  payments: 'Płatności',
+  poduszka: 'Poduszka',
+  edo: 'Poduszka – EDO'
 };
+
+// Typy wpłat na Poduszkę (kolumna G w „Oszczędności – rzeczywiste”)
+const POD_TYPES = { bos: 'BOŚ', eur: 'EUR', edo: 'EDO' };
 
 // Od tego dnia zakładka „Wydatki” pokazuje płatności na następny miesiąc (wypłata z 26. finansuje kolejny miesiąc)
 const NEXT_MONTH_FROM_DAY = 26;
@@ -58,7 +63,7 @@ function doPost(e) {
       case 'deleteExpense': result = deleteRowById_(SHEET.expenses, body.id); break;
       case 'addDeposit':    result = addDeposit_(body); break;
       case 'editDeposit':   result = editDeposit_(body); break;
-      case 'deleteDeposit': result = deleteRowById_(SHEET.deposits, body.id); break;
+      case 'deleteDeposit': result = deleteDeposit_(body); break;
       default: return json_({ ok: false, error: 'Nieznana akcja: ' + body.action });
     }
     SpreadsheetApp.flush();
@@ -88,12 +93,48 @@ function addDeposit_(b) {
   const amount = toNumber_(b.amount);
   if (!b.goal) throw new Error('Brak celu');
   if (!(amount > 0)) throw new Error('Kwota musi być większa od zera');
-  const currency = b.currency === '€' ? '€' : 'zł';
+  const type = b.goal === 'Poduszka' ? podType_(b.type) : '';
+  const currency = type === POD_TYPES.eur ? '€' : type ? 'zł' : (b.currency === '€' ? '€' : 'zł');
   const sh = sheet_(SHEET.deposits);
   const id = newId_();
   const now = new Date();
-  sh.appendRow([id, now, "'" + monthKey_(now), b.goal, amount, currency]);
+  sh.appendRow([id, now, "'" + monthKey_(now), b.goal, amount, currency, type]);
+  if (type === POD_TYPES.edo) addTranche_(id, now, amount);
   return { id: id };
+}
+
+function podType_(t) {
+  if (t === 'edo' || t === POD_TYPES.edo) return POD_TYPES.edo;
+  if (t === 'eur' || t === POD_TYPES.eur) return POD_TYPES.eur;
+  return POD_TYPES.bos;
+}
+
+// Rejestr transz EDO: ID | Data zakupu | Kwota | (liczba obligacji – formuła) | Oprocentowanie 1. roku | (rocznica – formuła) | Uwagi
+function addTranche_(id, date, amount) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(SHEET.edo);
+  if (!sh) return;
+  const rate = ss.getSheetByName(SHEET.poduszka).getRange('B13').getValue();
+  const ids = sh.getRange(2, 1, Math.max(1, sh.getMaxRows() - 1), 1).getValues();
+  let row = 2;
+  while (row - 2 < ids.length && ids[row - 2][0] !== '') row++;
+  sh.getRange(row, 1, 1, 3).setValues([[id, date, amount]]);
+  sh.getRange(row, 5).setValue(rate);
+}
+
+function removeTranche_(id) {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.edo);
+  if (!sh) return;
+  const row = findRow_(sh, id);
+  if (!row) return;
+  sh.getRange(row, 1, 1, 3).clearContent();
+  sh.getRange(row, 5).clearContent();
+  sh.getRange(row, 7).clearContent();
+}
+
+function deleteDeposit_(b) {
+  removeTranche_(b.id);
+  return deleteRowById_(SHEET.deposits, b.id);
 }
 
 function editDeposit_(b) {
@@ -102,7 +143,19 @@ function editDeposit_(b) {
   const sh = sheet_(SHEET.deposits);
   const row = findRow_(sh, b.id);
   if (!row) throw new Error('Nie znaleziono wpłaty ' + b.id);
-  sh.getRange(row, 5, 1, 2).setValues([[amount, b.currency === '€' ? '€' : 'zł']]);
+  const isPod = sh.getRange(row, 4).getValue() === 'Poduszka' && b.type;
+  const newType = isPod ? podType_(b.type) : '';
+  const cur = newType === POD_TYPES.eur ? '€' : newType ? 'zł' : (b.currency === '€' ? '€' : 'zł');
+  sh.getRange(row, 5, 1, 2).setValues([[amount, cur]]);
+  if (isPod) {
+    const type = newType, was = sh.getRange(row, 7).getValue();
+    sh.getRange(row, 7).setValue(type);
+    if (was === POD_TYPES.edo && type !== POD_TYPES.edo) removeTranche_(b.id);
+    if (type === POD_TYPES.edo && was !== POD_TYPES.edo) addTranche_(b.id, sh.getRange(row, 2).getValue(), amount);
+  }
+  const edoSh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET.edo);
+  const tr = edoSh ? findRow_(edoSh, b.id) : 0;
+  if (tr) edoSh.getRange(tr, 3).setValue(amount);
   return { id: b.id };
 }
 
@@ -130,6 +183,7 @@ function readAll_() {
     months: [prevMonth, month, nextMonth],
     budgets: readBudgets_([prevMonth, month, nextMonth]),
     payments: readPayments_(),
+    poduszka: readPoduszka_(),
     expenses: readExpenses_([prevMonth, month, nextMonth]),
     rate: num_(sheet_(SHEET.goals).getRange('B11').getValue()),
     budget: readBudget_(),
@@ -226,7 +280,7 @@ function readDeposits_() {
   const sh = sheet_(SHEET.deposits);
   const last = sh.getLastRow();
   if (last < 2) return [];
-  return sh.getRange(2, 1, last - 1, 6).getValues()
+  return sh.getRange(2, 1, last - 1, 7).getValues()
     .filter(function (r) { return r[0] && r[3]; })
     .map(function (r) {
       return {
@@ -235,9 +289,43 @@ function readDeposits_() {
         month: String(r[2]),
         goal: r[3],
         amount: num_(r[4]),
-        currency: r[5] === '€' ? '€' : 'zł'
+        currency: r[5] === '€' ? '€' : 'zł',
+        type: r[3] === 'Poduszka' ? (r[6] === POD_TYPES.edo ? 'edo' : r[6] === POD_TYPES.eur ? 'eur' : 'bos') : ''
       };
     });
+}
+
+function readPoduszka_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(SHEET.poduszka);
+  if (!sh) return null;
+  const v = sh.getRange('A1:G26').getValues();
+  const c = function (a1) { const m = /^([A-G])(\d+)$/.exec(a1); return v[Number(m[2]) - 1]['ABCDEFG'.indexOf(m[1])]; };
+  const fmtD = function (d) { return d instanceof Date ? Utilities.formatDate(d, TZ, 'yyyy-MM-dd') : String(d || ''); };
+  const schedule = [];
+  for (let r = 16; r <= 26; r++) {
+    const row = v[r - 1];
+    if (!row[0]) continue;
+    schedule.push({ month: String(row[0]).replace(/^'/, ''), bos: num_(row[1]), eur: num_(row[2]), edo: num_(row[3]), tranche: String(row[4] || ''), totalZl: num_(row[5]) });
+  }
+  const tranches = [];
+  const ed = ss.getSheetByName(SHEET.edo);
+  if (ed && ed.getLastRow() > 1) {
+    ed.getRange(2, 1, ed.getLastRow() - 1, 6).getValues().forEach(function (r) {
+      if (!r[0] && !r[2]) return;
+      tranches.push({ id: String(r[0]), date: fmtD(r[1]), amount: num_(r[2]), bonds: num_(r[3]), rate: num_(r[4]), anniversary: fmtD(r[5]) });
+    });
+  }
+  return {
+    bos: { goal: num_(c('B5')), saved: num_(c('C5')), where: String(c('F5') || '') },
+    eur: { goal: num_(c('B6')), saved: num_(c('C6')), where: String(c('F6') || '') },
+    edo: { goal: num_(c('B8')), saved: num_(c('C8')), where: String(c('F8') || '') },
+    goalZl: num_(c('B9')), totalZl: num_(c('C9')),
+    expectedEnd: String(c('B10') || ''),
+    edoRate: num_(c('B13')),
+    schedule: schedule,
+    tranches: tranches
+  };
 }
 
 function readPayments_() {

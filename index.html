@@ -95,6 +95,7 @@ nav a[aria-current=page]{font-weight:600}
 .hrow .acts .rm{background:var(--rm);color:#fff}
 .hrow .fg{position:relative;z-index:1;display:flex;align-items:center;gap:12px;height:52px;padding:0 4px;transition:transform .2s ease;touch-action:pan-y;user-select:none;-webkit-user-select:none}
 .hrow.open .fg{transform:translateX(-148px)}
+.tag{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:6px;font-size:11px;font-weight:600;vertical-align:2px;background:var(--track);color:var(--hl)}
 .start-row{display:flex;align-items:center;gap:12px;height:48px;padding:0 4px}
 .q-row{display:grid;grid-template-columns:28px 1fr auto;column-gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--div)}
 .q-row:last-child{border-bottom:none}
@@ -117,6 +118,12 @@ nav a[aria-current=page]{font-weight:600}
 .ck .du.late{color:#ffa08f;font-weight:600}
 .ck.done .nm{font-weight:400;color:rgba(255,255,255,.55);text-decoration:line-through}
 .ck.done .am{font-weight:400;color:rgba(255,255,255,.55)}
+.ck.tr .trl{display:flex;align-items:baseline;flex-wrap:wrap;gap:0 6px}
+.ck.tr .am2{font-size:16px;font-weight:600;white-space:nowrap}
+.ck.tr .arr{color:var(--muted)}
+.ck.tr .dst{font-size:15px;font-weight:600}
+.ck.tr .chip{font-size:11px;font-weight:600;padding:3px 8px;border-radius:8px;white-space:nowrap}
+.ck.tr.done .am2,.ck.tr.done .dst{font-weight:400;color:rgba(255,255,255,.5);text-decoration:line-through}
 .ck.sm{grid-template-columns:24px 1fr auto;column-gap:12px;padding:9px 0}
 .ck.sm .box{width:24px;height:24px}
 .ck.sm .nm,.ck.sm .am{font-size:14px}
@@ -174,9 +181,14 @@ body.busy .sync{opacity:.8;animation:pulse 1s infinite}
   <div style="display:flex;flex-direction:column;gap:6px">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <label for="depAmt" class="h2" style="color:var(--hl)">Kwota</label>
-      <div class="tg" role="group" aria-label="Waluta">
+      <div class="tg" role="group" aria-label="Waluta" id="curTg">
         <button id="curZl" aria-pressed="true">zł</button>
         <button id="curEur" aria-pressed="false">€</button>
+      </div>
+      <div class="tg" role="group" aria-label="Gdzie" id="typeTg" hidden>
+        <button id="tBos" aria-pressed="true">BOŚ</button>
+        <button id="tEur" aria-pressed="false">EUR</button>
+        <button id="tEdo" aria-pressed="false">EDO</button>
       </div>
     </div>
     <span style="display:flex;gap:8px">
@@ -224,7 +236,7 @@ const THEMES = [
 // ── savings screen themes ──
 const SV = {
   Poduszka: {
-    icon: 'cloud', eyebrow: 'Oszczędności · 6 × 15 000 zł', page: '#5b9bd5', theme: '#5b9bd5', spacer: 0,
+    icon: 'cloud', eyebrow: 'Poduszka rodziny · ok. 95 000 zł', page: '#5b9bd5', theme: '#5b9bd5', spacer: 0,
     v: { text:'#12305a', muted:'#34557f', acc:'#1f5fae', hl:'#1f5fae', onAcc:'#fff', glass:'rgba(255,255,255,.58)', glassB:'rgba(255,255,255,.75)', glassSh:'0 8px 28px rgba(22,63,120,.14)',
       cta:'rgba(26,78,150,.72)', ctaB:'rgba(255,255,255,.35)', ctaSh:'0 8px 28px rgba(22,63,120,.22)', ctaMuted:'#dbe9fb', ctaBtn:'#fff', ctaBtnTx:'#1f5fae',
       track:'rgba(31,95,174,.16)', div:'rgba(31,95,174,.14)', dot:'#7fa3d3', ring:'rgba(31,95,174,.2)', edBg:'#eef4fc', edTx:'#1f5fae', rm:'#d23b4a',
@@ -298,6 +310,8 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':
 const grp = (str) => str.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
 const n0 = (n) => { const r = Math.round(n); return (r < 0 ? '−' : '') + grp(String(Math.abs(r))); };
 const n2 = (n) => { const v = Math.round(Math.abs(Number(n)) * 100) / 100; const [i, d] = String(v).split('.'); return (n < 0 ? '−' : '') + grp(i) + (d ? ',' + (d.length === 1 ? d + '0' : d) : ''); };
+const money = (n, cur, dec) => { const v = dec ? n2(n) : n0(n); return cur === '€' ? '€\u202f' + v : v + ' zł'; };
+const addDays = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 const parseAmt = (s) => parseFloat(String(s).replace(/\s/g, '').replace(',', '.'));
 const isPool = (c) => c.limit === null;
 const setVars = (el, v) => Object.keys(v).forEach((k) => el.style.setProperty('--' + k, v[k]));
@@ -306,7 +320,7 @@ const setVars = (el, v) => Object.keys(v).forEach((k) => el.style.setProperty('-
 let data = null;
 let tab = (location.hash || '#budget').slice(1);
 let picked = null;          // selected expense category
-let sheetGoal = null, sheetEdit = null, sheetCur = 'zł';
+let sheetGoal = null, sheetEdit = null, sheetCur = 'zł', sheetType = 'bos';
 let openRow = null;         // swiped history row id
 let busy = 0;
 
@@ -460,7 +474,7 @@ function toGoalCur(g, amount, cur) { return cur === g.currency ? amount : (g.cur
 function splitTxt(p) {
   const parts = [];
   if (p.zl > 0) parts.push(n0(p.zl) + ' zł');
-  if (p.eur > 0) parts.push(n0(p.eur) + ' €');
+  if (p.eur > 0) parts.push(money(p.eur, '€'));
   return parts.join(' + ') || '–';
 }
 function fmtDate(iso) {
@@ -475,7 +489,7 @@ function renderSaving(name) {
   if (!g) { el.innerHTML = `<div class="inner"><p>Brak celu „${esc(name)}” w arkuszu.</p></div>`; return; }
   const cur = data.month;
   const unit = g.currency;
-  const fmtG = (n) => unit === '€' ? n0(n) + ' €' : n0(n) + ' zł';
+  const fmtG = (n) => money(n, unit);
   const deps = data.deposits.filter((d) => d.goal === name);
   const mixed = deps.some((d) => d.currency !== unit);
   const mDeps = deps.filter((d) => d.month === cur);
@@ -492,8 +506,24 @@ function renderSaving(name) {
   else if (plan.length) planHint = 'w planie od ' + MON_GEN[monIdx(plan[0].month)];
   else planHint = 'poza planem';
 
-  const savedLine = n0(g.savedZl) + ' zł + ' + n2(g.savedEur) + ' €';
-  const goalLabel = unit === '€' ? `cel ${n0(g.goal)} € ≈ ${n0(g.goalZl)} zł` : `cel ${n0(g.goal)} zł`;
+  let savedLine = n0(g.savedZl) + ' zł + ' + money(g.savedEur, '€', true);
+  const pd = name === 'Poduszka' ? data.poduszka : null;
+  let heroTotal = g.saved, heroPct = pct, heroDone = done, heroEnd = g.expectedEnd, planRowsData = null;
+  const schTxt = (x) => [x.bos > 0 ? n0(x.bos) + ' zł → BOŚ' : '', x.eur > 0 ? money(x.eur, '€') + ' → Raiffeisen' : '', x.edo > 0 ? 'EDO ' + n0(x.edo) + ' zł' + (x.tranche ? ' · transza ' + x.tranche : '') : ''].filter(Boolean).join(' · ');
+  if (pd) {
+    heroTotal = pd.totalZl; heroPct = Math.min(100, Math.round(pd.totalZl / (pd.goalZl || 1) * 100));
+    heroDone = pd.totalZl >= pd.goalZl - 1; heroEnd = pd.expectedEnd || g.expectedEnd;
+    savedLine = n0(pd.bos.saved) + ' zł BOŚ · ' + money(pd.eur.saved, '€') + ' Raiffeisen · ' + n0(pd.edo.saved) + ' zł EDO';
+    const thisMonth = mDeps.reduce((s, d) => s + (d.currency === '€' ? d.amount * data.rate : d.amount), 0);
+    let cum = pd.totalZl - thisMonth;
+    planRowsData = (pd.schedule || []).filter((x) => x.month >= cur && x.totalZl > 0).map((x) => { cum += x.totalZl; return Object.assign({ cum }, x); });
+    const now = (pd.schedule || []).find((x) => x.month === cur && x.totalZl > 0);
+    if (heroDone) planHint = 'Cel osiągnięty';
+    else if (now) planHint = 'w planie: ' + schTxt(now);
+    else if (planRowsData.length) planHint = 'w planie od ' + MON_GEN[monIdx(planRowsData[0].month)];
+    else planHint = 'poza planem';
+  }
+  const goalLabel = name === 'Poduszka' && data.poduszka ? `cel ≈ ${n0(data.poduszka.goalZl)} zł` : unit === '€' ? `cel ${money(g.goal, '€')} ≈ ${n0(g.goalZl)} zł` : `cel ${n0(g.goal)} zł`;
 
   let header;
   if (name === 'Korea') {
@@ -515,7 +545,12 @@ function renderSaving(name) {
       <span class="eyebrow" style="color:${v.headEb}">${cfg.eyebrow}</span><h1 class="h1" style="color:${v.headTx}">${esc(name)}</h1></div>`;
   }
 
-  const planRows = plan.map((p, i) => {
+  const planRows = planRowsData ? planRowsData.map((p, i) => {
+    const s = p.month === cur ? 'now' : (i === planRowsData.length - 1 ? 'end' : '');
+    return `<div class="plan-row"><span class="dot ${s}"></span>
+      <div style="display:flex;flex-direction:column"><span style="font-size:15px;${s ? 'color:var(--hl);font-weight:600' : 'font-weight:500'}">${monName(p.month)}</span><span class="muted" style="font-size:12px">${schTxt(p)}</span></div>
+      <span style="font-size:14px;${s === 'end' ? 'color:var(--hl);font-weight:600' : ''}">${s === 'end' ? '≈ ' : ''}${n0(p.cum)} zł</span></div>`;
+  }).join('') : plan.map((p, i) => {
     const s = p.month === cur ? 'now' : (i === plan.length - 1 ? 'end' : '');
     return `<div class="plan-row"><span class="dot ${s}"></span>
       <div style="display:flex;flex-direction:column"><span style="font-size:15px;${s ? 'color:var(--hl);font-weight:600' : 'font-weight:500'}">${monName(p.month)}</span><span class="muted" style="font-size:12px">${splitTxt(p)}</span></div>
@@ -525,7 +560,7 @@ function renderSaving(name) {
   const hist = deps.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map((d) => `
     <div class="hrow ${openRow === d.id ? 'open' : ''}" data-id="${esc(d.id)}">
       <div class="acts"><button class="ed">Edytuj</button><button class="rm">Usuń</button></div>
-      <div class="fg"><span class="muted" style="flex:1;font-size:14px">${fmtDate(d.date)}</span><span style="font-size:16px;font-weight:600">${n2(d.amount)} ${d.currency}</span></div>
+      <div class="fg"><span class="muted" style="flex:1;font-size:14px">${fmtDate(d.date)}</span><span style="font-size:16px;font-weight:600">${money(d.amount, d.currency, true)}${d.goal === 'Poduszka' && d.type ? '<span class="tag">' + ({ bos: 'BOŚ', eur: 'Raiffeisen', edo: 'EDO' }[d.type] || '') + '</span>' : ''}</span></div>
     </div>`).join('');
 
   let queue = '';
@@ -545,18 +580,46 @@ function renderSaving(name) {
       }).join('')}</section>`;
   }
 
+  let layers = '', edoCard = '';
+  if (pd) {
+    const part = (label, cur, goalV, goalTxt, where) => {
+      const p = Math.min(100, Math.round(cur / (goalV || 1) * 100));
+      return `<div style="display:flex;flex-direction:column;gap:6px">
+        <div class="row-sb" style="font-size:14px"><span style="font-weight:600">${label}</span><span>${goalTxt}</span></div>
+        <div class="bar" style="height:8px;background:var(--track)"><div style="width:${p}%;background:var(--acc)"></div></div>
+        <span class="muted" style="font-size:12px">${where}</span></div>`;
+    };
+    const nT = (pd.tranches || []).length;
+    layers = `<section class="glass" style="border-radius:24px;padding:14px 18px;display:flex;flex-direction:column;gap:14px">
+      <h2 class="h2 hl">Trzy części</h2>
+      ${part('Płynna PLN', pd.bos.saved, pd.bos.goal, n0(pd.bos.saved) + ' / ' + n0(pd.bos.goal) + ' zł', 'BOŚ Bank · Cyfrowy Zysk')}
+      ${part('Płynna EUR', pd.eur.saved, pd.eur.goal, money(pd.eur.saved, '€') + ' / ' + money(pd.eur.goal, '€'), 'Raiffeisen Digital Bank · ≈ ' + n0(pd.eur.saved * data.rate) + ' / ' + n0(pd.eur.goal * data.rate) + ' zł')}
+      ${part('Obligacje EDO', pd.edo.saved, pd.edo.goal, n0(pd.edo.saved) + ' / ' + n0(pd.edo.goal) + ' zł', nT + ' z 6 transz · rejestr obligacji')}
+    </section>`;
+    if (nT) {
+      edoCard = `<section class="glass" style="border-radius:24px;padding:12px 18px 6px;display:flex;flex-direction:column">
+        <div class="row-sb" style="margin-bottom:4px"><h2 class="h2 hl">Transze EDO</h2><span class="muted" style="font-size:12px">rocznica</span></div>
+        ${pd.tranches.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map((t) => `<div class="plan-row" style="grid-template-columns:1fr auto">
+          <div style="display:flex;flex-direction:column"><span style="font-size:15px;font-weight:500">${n0(t.amount)} zł · ${t.bonds || Math.floor(t.amount / 100)} szt.</span>
+          <span class="muted" style="font-size:12px">${fmtDate(t.date)}${t.rate ? ' · ' + (t.rate * 100).toFixed(2).replace('.', ',') + '% w 1. roku' : ''}</span></div>
+          <span style="font-size:13px">${fmtDate(t.anniversary)}</span></div>`).join('')}
+      </section>`;
+    }
+  }
+
   const r = name === 'Operacja' ? 26 : 24;
   el.innerHTML = `<div class="inner">
     <div class="svhead">${header}</div>
     <section class="glass" style="border-radius:${r}px;padding:16px 18px;display:flex;flex-direction:column;gap:10px">
       <div class="row-sb muted" style="font-size:13px"><span>Odłożone</span><span>${goalLabel}</span></div>
       <div style="display:flex;flex-direction:column;gap:4px">
-        <div class="serif" style="font-size:38px;line-height:1">${mixed ? '≈ ' : ''}${fmtG(g.saved)}</div>
+        <div class="serif" style="font-size:38px;line-height:1">${mixed && !pd ? '≈ ' : ''}${fmtG(heroTotal)}</div>
         <span class="muted" style="font-size:12px">${savedLine}</span>
       </div>
-      <div class="bar" style="height:10px;background:var(--track)"><div style="width:${pct}%;background:var(--acc)"></div></div>
-      <div class="row-sb" style="font-size:13px"><span class="muted">${pct}%</span><span class="hl" style="font-weight:600">${done ? 'cel osiągnięty' : (g.expectedEnd ? monYear(g.expectedEnd) : '')}</span></div>
+      <div class="bar" style="height:10px;background:var(--track)"><div style="width:${heroPct}%;background:var(--acc)"></div></div>
+      <div class="row-sb" style="font-size:13px"><span class="muted">${heroPct}%</span><span class="hl" style="font-weight:600">${heroDone ? 'cel osiągnięty' : (heroEnd ? monYear(heroEnd) : '')}</span></div>
     </section>
+    ${layers}
     <section class="cta" style="border-radius:${r}px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px">
       <div style="display:flex;flex-direction:column;gap:2px">
         <span style="font-size:13px;color:var(--ctaMuted)">Wpłata w tym miesiącu</span>
@@ -565,19 +628,21 @@ function renderSaving(name) {
       </div>
       <button class="open-sheet" style="height:48px;min-width:96px;padding:0 18px;border:none;border-radius:14px;background:var(--ctaBtn);color:var(--ctaBtnTx);font-size:15px;font-weight:600">Wpłać</button>
     </section>
-    ${plan.length ? `<section class="glass" style="border-radius:${r}px;padding:12px 18px 4px;display:flex;flex-direction:column">
+    ${(planRowsData ? planRowsData.length : plan.length) ? `<section class="glass" style="border-radius:${r}px;padding:12px 18px 4px;display:flex;flex-direction:column">
       <div class="row-sb" style="margin-bottom:4px"><h2 class="h2 hl">Plan do końca celu</h2><span class="muted" style="font-size:12px">stan po miesiącu</span></div>
       ${planRows}</section>` : ''}
     <section class="glass" style="border-radius:${r}px;padding:12px 18px 8px;display:flex;flex-direction:column">
-      <div class="row-sb" style="margin-bottom:4px"><h2 class="h2 hl">Historia wpłat</h2><span class="muted" style="font-size:12px">razem ${mixed ? '≈ ' : ''}${fmtG(g.saved)}</span></div>
+      <div class="row-sb" style="margin-bottom:4px"><h2 class="h2 hl">Historia wpłat</h2><span class="muted" style="font-size:12px">razem ${mixed && !pd ? '≈ ' : ''}${fmtG(heroTotal)}</span></div>
       ${hist}
       ${g.start > 0 ? `<div class="start-row"><span class="muted" style="flex:1;font-size:14px">Stan na start</span><span style="font-size:16px;font-weight:600">${fmtG(g.start)}</span></div>` : ''}
       ${!deps.length && !g.start ? `<p class="muted" style="margin:0;padding:10px 4px;font-size:14px">Nie ma jeszcze żadnych wpłat.${plan.length && !planNow ? ' Pierwsza w planie w ' + MON_LOC[monIdx(plan[0].month)] + '.' : ''}</p>` : ''}
     </section>
+    ${edoCard}
     ${queue}
   </div>`;
 
   el.querySelector('.open-sheet').onclick = () => openSheet(name, null);
+
   el.querySelectorAll('.hrow').forEach(bindSwipe);
 }
 
@@ -622,7 +687,7 @@ async function removeDeposit(id) {
   const prev = JSON.parse(JSON.stringify(data));
   data.deposits = data.deposits.filter((x) => x.id !== id);
   openRow = null; render();
-  try { await api({ action: 'deleteDeposit', id }); render(); toast(`Usunięto wpłatę ${n2(d.amount)} ${d.currency}`); }
+  try { await api({ action: 'deleteDeposit', id }); render(); toast(`Usunięto wpłatę ${money(d.amount, d.currency, true)}`); }
   catch (e) { data = prev; render(); toast('Nie udało się usunąć. Spróbuj jeszcze raz.'); }
 }
 
@@ -635,8 +700,13 @@ function openSheet(goal, dep) {
   $('sheetTitle').textContent = dep ? 'Edytuj wpłatę' : 'Nowa wpłata';
   $('depSave').textContent = dep ? 'Zapisz' : 'Wpłać';
   $('depAmt').value = dep ? String(dep.amount).replace('.', ',') : '';
-  $('rateHint').textContent = 'Kurs dziś: 1 € = ' + Number(data.rate).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł';
-  setCur(sheetCur);
+  $('rateHint').textContent = 'Kurs dziś: €\u202f1 = ' + Number(data.rate).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł';
+  const isPod = goal === 'Poduszka' && !!data.poduszka;
+  $('curTg').hidden = isPod; $('typeTg').hidden = !isPod;
+  if (isPod) {
+    const first = ['bos', 'eur', 'edo'].find((t) => podLeft(t) > 0) || 'bos';
+    setType(dep ? (dep.type || 'bos') : first, !dep);
+  } else setCur(sheetCur);
   document.body.classList.add('sheet-on');
   setTimeout(() => $('depAmt').focus(), 260);
 }
@@ -645,8 +715,30 @@ function setCur(c) {
   sheetCur = c;
   $('curZl').setAttribute('aria-pressed', c === 'zł'); $('curEur').setAttribute('aria-pressed', c === '€');
   $('depUnit').textContent = c;
+  $('depUnit').style.order = c === '€' ? '-1' : '0';
 }
 $('curZl').onclick = () => setCur('zł');
+// Poduszka: ile z harmonogramu na ten miesiąc zostało do wpłaty (BOŚ zł / Raiffeisen € / EDO zł)
+function podLeft(type) {
+  const pd = data.poduszka; if (!pd) return 0;
+  const sch = (pd.schedule || []).find((x) => x.month === data.month); if (!sch) return 0;
+  const paid = data.deposits.filter((d) => d.goal === 'Poduszka' && d.month === data.month && d.type === type).reduce((s, d) => s + d.amount, 0);
+  return Math.max(0, (sch[type] || 0) - paid);
+}
+function setType(t, prefill) {
+  sheetType = t;
+  $('tBos').setAttribute('aria-pressed', t === 'bos'); $('tEur').setAttribute('aria-pressed', t === 'eur'); $('tEdo').setAttribute('aria-pressed', t === 'edo');
+  setCur(t === 'eur' ? '€' : 'zł');
+  const pd = data.poduszka;
+  $('rateHint').textContent = t === 'edo'
+    ? 'Obligacje EDO po 100 zł' + (pd && pd.edoRate ? ' · ' + (pd.edoRate * 100).toFixed(2).replace('.', ',') + '% w 1. roku' : '')
+    : t === 'eur' ? 'Raiffeisen Digital Bank · kurs dziś: € 1 = ' + Number(data.rate).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł'
+    : 'BOŚ Bank · Cyfrowy Zysk';
+  if (prefill) { const left = podLeft(t); $('depAmt').value = left > 0 ? String(Math.round(left)) : ''; }
+}
+$('tBos').onclick = () => setType('bos', !sheetEdit);
+$('tEur').onclick = () => setType('eur', !sheetEdit);
+$('tEdo').onclick = () => setType('edo', !sheetEdit);
 $('curEur').onclick = () => setCur('€');
 $('sheetClose').onclick = closeSheet;
 $('scrim').onclick = closeSheet;
@@ -657,25 +749,27 @@ async function saveDeposit() {
   const amount = parseAmt($('depAmt').value);
   if (!(amount > 0)) { $('depAmt').focus(); return; }
   const goal = sheetGoal, currency = sheetCur, editId = sheetEdit;
+  const type = goal === 'Poduszka' && data.poduszka ? sheetType : undefined;
   const g = goalOf(goal);
   const prev = JSON.parse(JSON.stringify(data));
   // optimistic
   if (editId) {
     const d = data.deposits.find((x) => x.id === editId);
-    if (d) { Object.assign(d, { amount, currency }); }
+    if (d) { Object.assign(d, { amount, currency }, type ? { type } : {}); }
   } else {
     const today = new Date();
     const iso = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-    data.deposits.push({ id: 'tmp' + Date.now(), date: iso, month: data.month, goal, amount, currency });
+    data.deposits.push({ id: 'tmp' + Date.now(), date: iso, month: data.month, goal, amount, currency, type: type || '' });
+    if (type && data.poduszka) { const pd = data.poduszka; pd[type].saved += amount; pd.totalZl += type === 'eur' ? amount * data.rate : amount; }
     const add = toGoalCur(g, amount, currency);
     g.saved += add; g.progress = Math.min(1, g.saved / g.goal);
     if (currency === 'zł') g.savedZl += amount; else g.savedEur += amount;
   }
   closeSheet(); render();
   try {
-    await api(editId ? { action: 'editDeposit', id: editId, amount, currency } : { action: 'addDeposit', goal, amount, currency });
+    await api(editId ? { action: 'editDeposit', id: editId, amount, currency, type } : { action: 'addDeposit', goal, amount, currency, type });
     render();
-    toast(editId ? 'Zapisano zmianę' : `Wpłacono ${n2(amount)} ${currency} · ${goal}`);
+    toast(editId ? 'Zapisano zmianę' : `Wpłacono ${money(amount, currency, true)} · ${goal}${type ? ' · ' + { bos: 'BOŚ', eur: 'Raiffeisen', edo: 'EDO' }[type] : ''}`);
   } catch (e) {
     data = prev; render();
     toast('Nie udało się zapisać. Spróbuj jeszcze raz.');
@@ -701,38 +795,68 @@ function paymentsModel() {
     if (hit) used.add(hit.id);
     return { kind: 'pay', key: 'p:' + p.id, name: p.name, amount: p.amount, cur: 'zł', day: p.day, done: !!hit, expenseId: hit ? hit.id : null, pay: p };
   });
-  // savings in złoty for this month (IKZE takes everything in zł)
-  const depIn = (goal, cur) => data.deposits.filter((d) => d.goal === goal && d.month === pm && (!cur || d.currency === cur));
-  Object.keys(data.plan || {}).forEach((goal) => {
-    const g = goalOf(goal); if (!g) return;
-    const e = (data.plan[goal] || []).find((x) => x.month === pm); if (!e) return;
-    const amt = goal === 'IKZE' ? Math.round(e.zl + e.eur * data.rate) : e.zl;
-    if (!(amt > 0)) return;
-    const paid = goal === 'IKZE' ? depIn(goal).reduce((s, d) => s + toGoalCur(g, d.amount, d.currency), 0) : depIn(goal, 'zł').reduce((s, d) => s + d.amount, 0);
-    rows.push({ kind: 'save', key: 's:' + goal, name: goal, amount: amt, cur: 'zł', day: 7, hideDay: true, done: paid >= amt - 0.5 || g.saved >= g.goal - 0.5, goal });
-  });
   rows.forEach((r) => {
-    r.late = isCur && r.day && !r.hideDay && !r.done && r.day <= today;
-    r.dueTxt = r.hideDay || !r.day ? '' : (r.late ? (r.day === today ? 'dziś' : 'po terminie') : 'do ' + r.day + '.');
+    r.late = isCur && r.day && !r.done && r.day <= today;
+    r.dueTxt = !r.day ? '' : (r.late ? (r.day === today ? 'dziś' : 'po terminie') : 'do ' + r.day + '.');
   });
   const todo = rows.filter((r) => !r.done).sort((a, b) => (a.day || 99) - (b.day || 99));
   const done = rows.filter((r) => r.done);
-  // euro account
-  const eurGoals = data.goals.filter((g) => g.name !== 'IKZE');
-  const balance = eurGoals.map((g) => ({ name: g.name, amt: data.deposits.filter((d) => d.goal === g.name && d.currency === '€').reduce((s, d) => s + d.amount, 0) + (g.currency === '€' ? g.start : 0) }));
-  const eurRows = eurGoals.map((g) => {
-    const e = (data.plan[g.name] || []).find((x) => x.month === pm);
-    if (!e || !(e.eur > 0)) return null;
-    const paid = depIn(g.name, '€').reduce((s, d) => s + d.amount, 0);
-    return { kind: 'save', key: 'e:' + g.name, name: g.name, amount: e.eur, cur: '€', done: paid >= e.eur - 0.5 || g.saved >= g.goal - 0.5, goal: g.name };
-  }).filter(Boolean);
-  return { pm, isCur, todo, done, balance, eurRows };
+
+  // ── gdzie przelewam w tym miesiącu (oszczędności) ──
+  const rate = data.rate || 1;
+  const depIn = (goal, pred) => data.deposits.filter((d) => d.goal === goal && d.month === pm && (!pred || pred(d)));
+  const sumEur = (list) => list.reduce((s, d) => s + (d.currency === '€' ? d.amount : d.amount / rate), 0);
+  const sumZl = (list) => list.reduce((s, d) => s + (d.currency === '€' ? d.amount * rate : d.amount), 0);
+  const tr = [];
+  const pd = data.poduszka;
+  const sch = pd && (pd.schedule || []).find((x) => x.month === pm);
+  if (sch) {
+    if (sch.bos > 0) tr.push({ key: 't:bos', goal: 'Poduszka', podType: 'bos', amount: sch.bos, cur: 'zł', dest: 'BOŚ', sub: '',
+      done: sumZl(depIn('Poduszka', (d) => d.type === 'bos')) >= sch.bos - 0.5 });
+    if (sch.eur > 0) tr.push({ key: 't:eur', goal: 'Poduszka', podType: 'eur', amount: sch.eur, cur: '€', dest: 'Raiffeisen', sub: '≈ ' + n0(sch.eur * rate) + ' zł',
+      done: sumEur(depIn('Poduszka', (d) => d.type === 'eur')) >= sch.eur - 0.5 });
+    if (sch.edo > 0) {
+      const eurFor = Math.abs(sch.edo - 8500) < 1 ? 2000 : Math.ceil(sch.edo / rate / 10) * 10;
+      tr.push({ key: 't:edo', goal: 'Poduszka', podType: 'edo', amount: sch.edo, cur: 'zł', dest: 'EDO', show: (eurFor === 2000 ? '' : '≈ ') + money(eurFor, '€'),
+        sub: 'obligacje za ' + (eurFor === 2000 ? 'ok. ' : '') + n0(sch.edo) + ' zł' + (sch.tranche ? ' · transza ' + sch.tranche : ''),
+        done: sumZl(depIn('Poduszka', (d) => d.type === 'edo')) >= sch.edo - 0.5 });
+    }
+  }
+  const planOf = (goal) => ((data.plan || {})[goal] || []).find((x) => x.month === pm);
+  const ik = planOf('IKZE'), gI = goalOf('IKZE');
+  if (ik && gI) { const amt = Math.round(ik.zl + ik.eur * rate); if (amt > 0) tr.push({ key: 't:ikze', goal: 'IKZE', amount: amt, cur: 'zł', dest: 'IKZE', sub: '', done: sumZl(depIn('IKZE')) >= amt - 0.5 || gI.saved >= gI.goal - 0.5 }); }
+  ['Korea', 'Operacja'].forEach((goal) => {
+    const e = planOf(goal), g = goalOf(goal); if (!e || !g) return;
+    const eur = Math.round(e.eur + e.zl / rate); if (!(eur > 0)) return;
+    tr.push({ key: 't:' + goal, goal, amount: eur, cur: '€', dest: 'konto EUR', sub: n0(Math.round(e.zl + e.eur * rate)) + ' zł', done: sumEur(depIn(goal)) >= eur - 0.5 || g.saved >= g.goal - 0.5 });
+  });
+  tr.forEach((r) => { r.kind = 'save'; r.name = (r.show || money(r.amount, r.cur)) + ' → ' + r.dest; });
+  const transfers = tr.filter((r) => !r.done).concat(tr.filter((r) => r.done));
+
+  // ── euro: konto EUR (Korea, Operacja) + Raiffeisen (Poduszka) ──
+  const eurOf = (goal, pred) => data.deposits.filter((d) => d.goal === goal && d.currency === '€' && (!pred || pred(d))).reduce((s, d) => s + d.amount, 0);
+  const gO = goalOf('Operacja');
+  const balance = [
+    { name: 'Korea', where: 'konto EUR', amt: eurOf('Korea') },
+    { name: 'Operacja', where: 'konto EUR', amt: eurOf('Operacja') + (gO && gO.currency === '€' ? gO.start : 0) },
+    { name: 'Poduszka', where: 'Raiffeisen', amt: pd ? pd.eur.saved : eurOf('Poduszka') }
+  ];
+  return { pm, isCur, todo, done, transfers, balance };
+}
+
+const CHIP = { Poduszka: 'rgba(127,178,229,.22);color:#cfe4f8', Korea: 'rgba(255,122,182,.2);color:#ffc2dd', Operacja: 'rgba(232,180,188,.22);color:#f6d5da', IKZE: 'rgba(255,255,255,.14);color:#fff' };
+function trRow(r) {
+  const [amt, dest] = r.name.split(' → ');
+  return `<button class="ck tr ${r.done ? 'done' : ''} ${payBusy[r.key] ? 'busy' : ''}" data-key="${esc(r.key)}" aria-pressed="${r.done}" aria-label="${esc((r.done ? 'Odznacz: ' : 'Oznacz jako zrobione: ') + r.name + ' (' + r.goal + ')')}">
+    <span class="box">${CHECK}</span>
+    <span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="trl"><span class="am2">${esc(amt)}</span><span class="arr">→</span><span class="dst">${esc(dest)}</span></span>${r.sub && !r.done ? `<span class="du">${esc(r.sub)}</span>` : ''}</span>
+    <span class="chip" style="background:${CHIP[r.goal] || CHIP.IKZE}">${esc(r.goal)}</span></button>`;
 }
 
 function ckRow(r, small) {
   return `<button class="ck ${small ? 'sm' : ''} ${r.done ? 'done' : ''} ${payBusy[r.key] ? 'busy' : ''}" data-key="${esc(r.key)}" aria-pressed="${r.done}" aria-label="${esc((r.done ? 'Odznacz: ' : 'Oznacz jako zrobione: ') + r.name)}">
     <span class="box">${CHECK}</span><span class="nm">${esc(r.name)}</span>
-    <span class="am">${n0(r.amount) + ' ' + r.cur}${!small && !r.done && r.dueTxt ? `<span class="du ${r.late ? 'late' : ''}">${r.dueTxt}</span>` : ''}</span></button>`;
+    <span class="am">${money(r.amount, r.cur)}${!small && !r.done && r.dueTxt ? `<span class="du ${r.late ? 'late' : ''}">${r.dueTxt}</span>` : ''}</span></button>`;
 }
 
 function renderPayments() {
@@ -740,14 +864,14 @@ function renderPayments() {
   const m = paymentsModel();
   const t = THEMES[monIdx(m.pm)];
   setVars(el, { base: t.base, acc: t.acc, accText: t.accText, accSoft: rgba(t.acc, .7), muted: t.muted, hero: t.hero, scrim: rgba(t.base, .45), photo: `url(img/${t.photo}.jpg)` });
-  const all = m.todo.length + m.done.length + m.eurRows.length;
-  const doneN = m.done.length + m.eurRows.filter((r) => r.done).length;
-  const leftZl = m.todo.reduce((s, r) => s + r.amount, 0);
-  const leftEur = m.eurRows.filter((r) => !r.done).reduce((s, r) => s + r.amount, 0);
+  const all = m.todo.length + m.done.length + m.transfers.length;
+  const doneN = m.done.length + m.transfers.filter((r) => r.done).length;
+  const openT = m.transfers.filter((r) => !r.done);
+  const leftZl = m.todo.reduce((s, r) => s + r.amount, 0) + openT.filter((r) => r.cur === 'zł' && r.podType !== 'edo').reduce((s, r) => s + r.amount, 0);
+  const leftEur = openT.reduce((s, r) => s + (r.cur === '€' ? r.amount : r.podType === 'edo' ? (Math.abs(r.amount - 8500) < 1 ? 2000 : r.amount / data.rate) : 0), 0);
   const pct = all ? Math.round(doneN / all * 100) : 0;
   const eurSum = m.balance.reduce((s, b) => s + b.amt, 0);
-  const transfer = m.eurRows.reduce((s, r) => s + r.amount, 0);
-  const allRows = m.todo.concat(m.done, m.eurRows);
+  const allRows = m.todo.concat(m.done, m.transfers);
 
   el.innerHTML = `
     <div class="photo" aria-hidden="true"></div><div class="fade" aria-hidden="true"></div>
@@ -758,21 +882,23 @@ function renderPayments() {
         <div class="row-sb" style="font-size:13px;color:rgba(255,255,255,.82)"><span>Zostało do zrobienia</span><span>${doneN} z ${all} gotowe</span></div>
         <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
           <span class="serif" style="font-size:36px;line-height:1">${n0(leftZl)} zł</span>
-          ${leftEur > 0 ? `<span class="serif" style="font-size:22px;line-height:1;color:rgba(255,255,255,.82)">+ ${n0(leftEur)} €</span>` : ''}
+          ${leftEur > 0 ? `<span class="serif" style="font-size:22px;line-height:1;color:rgba(255,255,255,.82)">+ ${money(leftEur, '€')}</span>` : ''}
         </div>
         <div class="bar" style="height:8px;background:rgba(255,255,255,.24)"><div style="width:${pct}%;background:${t.acc}"></div></div>
       </section>
+      ${m.transfers.length ? `<section class="card blur" style="border-radius:24px;padding:14px 16px 4px">
+        <h2 class="h2" style="color:${t.acc}">Gdzie przelewam w tym miesiącu</h2>
+        ${m.transfers.map(trRow).join('')}</section>` : ''}
       ${m.todo.length ? `<section class="card blur" style="border-radius:24px;padding:4px 16px">${m.todo.map((r) => ckRow(r)).join('')}</section>` : ''}
-      ${`<section class="card blur" style="border-radius:24px;padding:14px 16px 6px;display:flex;flex-direction:column;gap:10px">
-        <h2 class="h2" style="color:${t.acc}">Konto w euro</h2>
-        <div class="row-sb"><span class="serif" style="font-size:30px;line-height:1">${n0(eurSum)} €</span><span style="font-size:12px;color:var(--muted)">≈ ${n0(eurSum * data.rate)} zł</span></div>
+      <section class="card blur" style="border-radius:24px;padding:14px 16px 6px;display:flex;flex-direction:column;gap:10px">
+        <h2 class="h2" style="color:${t.acc}">Euro</h2>
+        <div class="row-sb"><span class="serif" style="font-size:30px;line-height:1">${money(eurSum, '€')}</span><span style="font-size:12px;color:var(--muted)">≈ ${n0(eurSum * data.rate)} zł</span></div>
         ${eurSum > 0 ? `<div style="display:flex;height:10px;border-radius:10px;overflow:hidden;gap:2px;background:rgba(255,255,255,.08)">${m.balance.filter((b) => b.amt > 0).map((b) => `<span style="flex:${b.amt} 0 0;background:${GOAL_COLORS[b.name] || t.acc}"></span>`).join('')}</div>` : ''}
         <div>${m.balance.map((b) => `<div style="display:grid;grid-template-columns:10px 1fr auto;column-gap:10px;align-items:center;padding:7px 0">
-          <span style="width:10px;height:10px;border-radius:50%;background:${GOAL_COLORS[b.name] || t.acc}"></span><span style="font-size:14px;font-weight:500">${esc(b.name)}</span><span style="font-size:14px;font-weight:600">${n0(b.amt)} €</span></div>`).join('')}</div>
-        ${m.eurRows.length ? `<div class="row-sb" style="border-top:1px solid rgba(255,255,255,.1);padding-top:10px">
-            <span class="h2" style="color:var(--muted)">Przelew w tym miesiącu</span><span style="font-size:12px;color:var(--muted)">${n0(transfer)} € z firmowego</span></div>
-          <div style="margin-top:-4px">${m.eurRows.map((r) => ckRow(r, true)).join('')}</div>` : `<div style="border-top:1px solid rgba(255,255,255,.1);padding:10px 0 8px;font-size:13px;color:var(--muted)">W tym miesiącu bez przelewu w euro</div>`}
-      </section>`}
+          <span style="width:10px;height:10px;border-radius:50%;background:${GOAL_COLORS[b.name] || t.acc}"></span>
+          <span style="font-size:14px;font-weight:500">${esc(b.name)} <span style="font-weight:400;color:var(--muted)">· ${esc(b.where)}</span></span>
+          <span style="font-size:14px;font-weight:600">${money(b.amt, '€')}</span></div>`).join('')}</div>
+      </section>
       ${m.done.length ? `<div class="row-sb" style="padding:4px 6px 0"><h2 class="h2" style="color:${t.acc}">Zrobione</h2><span style="font-size:12px;color:var(--muted)">${m.done.length}</span></div>
       <section class="card" style="border-radius:24px;padding:4px 16px;background:rgba(255,255,255,.03)">${m.done.map((r) => ckRow(r)).join('')}</section>` : ''}
       ${!allRows.length ? `<p style="color:var(--muted);text-align:center">Brak płatności – dodaj je w arkuszu, w zakładce „Płatności”.</p>` : ''}
@@ -785,10 +911,10 @@ function renderPayments() {
 async function togglePay(r, m) {
   if (!r || payBusy[r.key]) return;
   if (r.kind === 'save') {
-    if (r.done) { toast(`Wpłaty na ${r.goal} zmienisz w karcie ${r.goal}`); return; }
+    if (r.done) { toast(`Wpłaty na ${r.goal} zmienisz w zakładce ${r.goal}`); return; }
     if (!m.isCur) { toast(m.pm > data.month ? 'Wpłaty na przyszły miesiąc zapiszesz od 1.' : `Wpłaty za ${monName(m.pm).toLowerCase()} zmienisz w karcie ${r.goal}`); return; }
     payBusy[r.key] = true; render();
-    try { await api({ action: 'addDeposit', goal: r.goal, amount: r.amount, currency: r.cur }); toast(`Wpłacono ${r.cur === '€' ? n2(r.amount) : n0(r.amount)} ${r.cur} · ${r.goal}`); }
+    try { await api({ action: 'addDeposit', goal: r.goal, amount: r.amount, currency: r.cur, type: r.podType }); toast(`Zapisano: ${money(r.amount, r.cur)} → ${r.dest} · ${r.goal}`); }
     catch (e) { toast('Nie udało się zapisać. Spróbuj jeszcze raz.'); }
     delete payBusy[r.key]; render(); return;
   }
